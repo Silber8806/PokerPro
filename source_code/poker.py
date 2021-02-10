@@ -13,7 +13,7 @@ class PokerGame():
 class Deck():
     def __init__(self):
         self.ranks = [str(n) for n in range(2, 11)] + list('JQKA')
-        self.suits = suits = 'spades diamonds clubs hearts'.split()
+        self.suits = 'spades diamonds clubs hearts'.split()
         standard_card_deck = [Card(rank, suit) for suit in self.suits for rank in self.ranks]
         random.shuffle(standard_card_deck)
         self.cards = standard_card_deck
