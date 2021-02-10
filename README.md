@@ -88,7 +88,8 @@ to push that specific branch to github.com.  They will than open a pull request,
 
 # Why Git?
 Git tracks every file you add and change you made to your code via a set of saved points called merges.  When you merge code, it creates a SHA-256 hash representing
-a unique value for that change.  At any time, you can revisit any of the save points using git checkout <hash>.  This is useful when you accidently delete useful code,
+a unique value for that change.  At any time, you can revisit any of the save points using git checkout hash.  This is useful when you accidently delete useful code,
 introduce a bug into production that needs to be backed out of or want to review old code you wrote to steal ideas.  Github also has markdown language and allows you
 to read jupyter notebooks online in a shared environment.  Most importantly, github let's a team of 15 people work together by having each of them work on their 
-own copy of code and than selectively choosing/reviewing the code that gets merged into main, which typically gets used on actual production servers. 
+own copy of code and than selectively choosing/reviewing the code that gets merged into main, which typically gets used on actual production servers.  Also!  You 
+can show it off to future employers by just giving them your github address.
