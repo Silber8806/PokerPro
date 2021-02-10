@@ -58,14 +58,14 @@ git add <file_name>
 ```
 
 Once you have files tracked, you can change them and save changes locally using the git commit -am <message> command.  Where -m flag is just a message
-describing the code change on github.  Explains the change to people viewing your code.
+describing the code change on github.  Explains the change to people viewing your code online.
   
 ```
 git commit -am "adding new feature, shuffling poker deck"
 ```
 
-git commit only saves the changes locally to your active branch.  If you want to push the changes to github.com, you have to use the git push command
-(below new_code_copy is the branch you are working on.  I typically use git status to make sure I'm on the right branch):
+git commit only saves the changes locally to your active branch and it's encouraged to do this regularly.  If you want to push the changes to github.com, 
+you have to use the git push command (below new_code_copy is the branch you are working on.  I typically use git status to make sure I'm on the right branch):
 
 ```
 git push origin new_code_copy
