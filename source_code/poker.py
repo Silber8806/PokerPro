@@ -137,6 +137,10 @@ class FrenchDeck():
         return "French Deck ({} of {} cards remaining)".format(len(self.cards),len(self.all_cards))
 
 class Player():
+    """
+        This class will keep information about a player between games
+        and also have a method that makes decisions about a game situation.
+    """
     def __init__(self,name,balance):
         self.name = name
         self.balance = balance 
@@ -144,6 +148,7 @@ class Player():
         self.wins = 0
         self.loses = 0
         self.decisions = ['fold','check','call','bet']
+        self.strategy = None
 
     def take_turn(self, river, hand, opponents):
         if opponents == 0:
@@ -169,6 +174,11 @@ class Player():
         return "{}".format(self.name)
 
 class PLayerStrategy():
+    """
+        This class will hold player strategies that are used by make_turn.  You can
+        switch strategies or use the same one.  They represent thought processes regarding
+        a set of cards and number of opponents.
+    """
     def __init__(self):
         return None
 
@@ -177,6 +187,10 @@ class PLayerStrategy():
         return None
 
 class Game():
+    """
+        Game implements all the logic about a game including who is playing, who has not yet folded,
+        how big the pot is and also implements each players turn as well as scoring the end game.
+    """
     def __init__(self,cards,players):
         self.cards = cards
         self.players = {player.name: {"player": player, "active": 1, "hand": None} for player in players}
@@ -233,22 +247,29 @@ def score_hand(cards):
     return 0
 
 class Table():
-    def __init__(self):
-        print('started poker game')
+    """ 
+        This class sets up a table, starts the simulation by instantiating a FrenchDeck
+        and than streams a set of cards, which it uses per game.  This needs to be 
+        flehsed out a bit.
+    """
+    def __init__(self,players,beginning_balance,hands):
+        self.players = players 
+        self.balance = beginning_balance
+        self.hands = hands
 
     def run_simulation(self):
+        print('started poker game')
         deck = FrenchDeck()
 
-        num_of_players = 2
-        players = initialize_players(num_of_players=2, balance = 100)
+        players = initialize_players(num_of_players=self.players, balance = self.balance)
 
-        for _, hand in enumerate(deck.draw(num_of_players * 2 + 5,100)):
+        for _, hand in enumerate(deck.draw(self.players * 2 + 5,100)):
             game = Game(hand,players)
             game.run_game()
         return 0
 
 if __name__ == '__main__':
-    casino = Table()
+    casino = Table(players=2,beginning_balance=100,hands=1000)
     casino.run_simulation()
 
 
