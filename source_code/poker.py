@@ -14,6 +14,16 @@ class Table():
         print('started poker game')
         self.players = players
 
+def initialize_players(num_of_players, balance):
+    players = []
+    for player in range(num_of_players):
+        name = "players" + str(player + 1)
+        balance = balance 
+        new_player = Player(name,balance)
+        players.append(new_player)
+    
+    return players
+
 class FrenchDeck():
 
     """ 
@@ -133,19 +143,108 @@ class FrenchDeck():
 
 class Player():
     def __init__(self,name,balance):
-        self.name = name 
-        self.balance = balance
+        self.name = name
+        self.balance = balance 
+        self.bet = 0
+        self.wins = 0
+        self.loses = 0
+        self.hand = None
+        self.river = None
+        self.active = True
+        self.decisions = ['fold','check','bet']
+        self.opponents = 0
+
+    def draw_hand(self,hand):
+        self.hand = hand
+
+    def set_viewable_river(self,river):
+        self.river = river
+
+    def set_opponent_number(self,opponents):
+        self.opponents = opponents
+
+    def take_turn(self):
+        if not self.active:
+            return 0, 'fold'
+
+        if self.opponents == 1:
+            return 0, 'check'
+
+        bet = 0
+
+        hand = self.hand 
+        river = self.river
+        num_of_opponents = self.opponents
+
+        decision = random.choice(self.decisions)
+
+        if (decision == 'fold'):
+            self.active = False
+        elif (decision == 'bet'):
+            bet = self.make_bet(50)
+        
+        return bet, decision
+
+    def make_bet(self,bet):
+        self.balance = self.balance - bet 
+        return bet
+
+    def __repr__(self):
+        return "{}".format(self.name)
+
+    def __str__(self):
+        return "{}".format(self.name)
 
 class Game():
-    def __init__(self,cards):
+    def __init__(self,cards,players):
         self.cards = cards
-        self.players = (len(cards) - 5) // 2
-        self.positions = { "player" + str(i+1): hand for i, hand in enumerate(chunk(cards[5:],2)) }
-        self.positions['river'] = self.cards[:5]
+        self.players = players
+        self.river = cards[:5]
+        self.pot = 0
+        for player, hand in zip(self.players,chunk(cards[5:],2)):
+            player.draw_hand(hand)
+
+    def update_active_players(self):
+        current_players = []
+        for player in self.players:
+            if not player.active:
+                continue
+            else:
+                current_players.append(player)
+        self.players = current_players
         return None
 
+    def score_game(self):
+        if self.get_active_players() == 1:
+            print "player 1 won!"
+            return None
+
+        for player in self.players:
+            if player.active:
+                print("player final result")
+        return None
+
+    def reward_player(self,pot):
+        return None
+
+    def get_active_players(self):
+        active_players = sum([1 for player in self.players if player.active])
+        return active_players
+
     def run_game(self):
-        print("started_game")
+        for turn in range(3,6):
+            current_river = self.river[:turn]
+            for player in self.players:
+                if player.active:
+                    player.set_viewable_river(current_river)
+                    player.set_opponent_number(self.get_active_players())
+                    bet, decision = player.take_turn()
+                    print("{} decides to {} with bet {}".format(player, decision, bet))
+                    self.pot = self.pot + bet
+            if self.get_active_players() == 1:
+                break
+                    
+        self.score_game()
         return None
 
     def __str__(self):
@@ -154,10 +253,12 @@ class Game():
 if __name__ == '__main__':
     deck = FrenchDeck()
 
-    players = 2
-    cards_per_game = 2 * 2 + 5
+    num_of_players = 2
+    players = initialize_players(num_of_players=2, balance = 100)
+    print(players)
 
-    for game_number, hand in enumerate(deck.draw(cards_per_game,1000)):
-        game = Game(hand)
-        print(game)
+    for game_number, hand in enumerate(deck.draw(num_of_players * 2 + 5,1000)):
+        game = Game(hand,players)
+        game.run_game()
+        break
 
