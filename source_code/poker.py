@@ -9,11 +9,6 @@ def chunk(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
-class Table():
-    def __init__(self,players):
-        print('started poker game')
-        self.players = players
-
 def initialize_players(num_of_players, balance):
     players = []
     for player in range(num_of_players):
@@ -195,6 +190,14 @@ class Player():
     def __str__(self):
         return "{}".format(self.name)
 
+class PLayerStrategy():
+    def __init__(self):
+        return None
+
+    def strategy1(self):
+        print('implement strategy here...')
+        return None
+
 class Game():
     def __init__(self,cards,players):
         self.cards = cards
@@ -203,25 +206,17 @@ class Game():
         self.pot = 0
         for player, hand in zip(self.players,chunk(cards[5:],2)):
             player.draw_hand(hand)
-
-    def update_active_players(self):
-        current_players = []
-        for player in self.players:
-            if not player.active:
-                continue
-            else:
-                current_players.append(player)
-        self.players = current_players
-        return None
+            player.active = True
 
     def score_game(self):
         if self.get_active_players() == 1:
-            print "player 1 won!"
+            print("This player won!")
             return None
 
         for player in self.players:
             if player.active:
                 print("player final result")
+
         return None
 
     def reward_player(self,pot):
@@ -250,15 +245,26 @@ class Game():
     def __str__(self):
         return "Game with {} players".format(self.players)
 
+def score_hand(cards):
+    return 'High Card Ace', 0
+
+class Table():
+    def __init__(self):
+        print('started poker game')
+
+    def run_simulation(self):
+        deck = FrenchDeck()
+
+        num_of_players = 2
+        players = initialize_players(num_of_players=2, balance = 100)
+
+        for _, hand in enumerate(deck.draw(num_of_players * 2 + 5,100)):
+            game = Game(hand,players)
+            game.run_game()
+        return 0
+
 if __name__ == '__main__':
-    deck = FrenchDeck()
+    casino = Table()
+    casino.run_simulation()
 
-    num_of_players = 2
-    players = initialize_players(num_of_players=2, balance = 100)
-    print(players)
-
-    for game_number, hand in enumerate(deck.draw(num_of_players * 2 + 5,1000)):
-        game = Game(hand,players)
-        game.run_game()
-        break
 
