@@ -3,8 +3,6 @@
 import random
 import collections
 
-from itertools import permutations
-
 Card = collections.namedtuple('Card', ['rank', 'suit'])
 
 def chunk(lst, n):
@@ -161,5 +159,5 @@ if __name__ == '__main__':
 
     for game_number, hand in enumerate(deck.draw(cards_per_game,1000)):
         game = Game(hand)
-        game.run_game()
+        print(game)
 
