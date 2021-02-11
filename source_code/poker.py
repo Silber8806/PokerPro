@@ -143,39 +143,17 @@ class Player():
         self.bet = 0
         self.wins = 0
         self.loses = 0
-        self.hand = None
-        self.river = None
-        self.active = True
-        self.decisions = ['fold','check','bet']
-        self.opponents = 0
+        self.decisions = ['fold','check','call','bet']
 
-    def draw_hand(self,hand):
-        self.hand = hand
-
-    def set_viewable_river(self,river):
-        self.river = river
-
-    def set_opponent_number(self,opponents):
-        self.opponents = opponents
-
-    def take_turn(self):
-        if not self.active:
-            return 0, 'fold'
-
-        if self.opponents == 1:
+    def take_turn(self, river, hand, opponents):
+        if opponents == 0:
             return 0, 'check'
 
         bet = 0
 
-        hand = self.hand 
-        river = self.river
-        num_of_opponents = self.opponents
-
         decision = random.choice(self.decisions)
 
-        if (decision == 'fold'):
-            self.active = False
-        elif (decision == 'bet'):
+        if (decision == 'bet'):
             bet = self.make_bet(50)
         
         return bet, decision
@@ -201,52 +179,58 @@ class PLayerStrategy():
 class Game():
     def __init__(self,cards,players):
         self.cards = cards
-        self.players = players
+        self.players = {player.name: {"player": player, "active": 1, "hand": None} for player in players}
         self.river = cards[:5]
         self.pot = 0
+        self.winner = None
         for player, hand in zip(self.players,chunk(cards[5:],2)):
-            player.draw_hand(hand)
-            player.active = True
+            self.players[player]['hand'] = hand
+
+    def get_active_players(self):
+        return [self.players[player] for player in self.players if self.players[player]['active']]
 
     def score_game(self):
-        if self.get_active_players() == 1:
-            print("This player won!")
-            return None
+        active_players = self.get_active_players()
 
-        for player in self.players:
-            if player.active:
-                print("player final result")
-
+        if len(active_players) == 1:
+            self.winner = active_players
+            print("player {} won!".format(self.winner[0]['player']))
+        else: 
+            for player in self.players:
+                current_player = self.players[player]
+                print("checking win condition for {}".format(player))
+                score_hand(current_player['hand'] + self.river)
         return None
 
     def reward_player(self,pot):
         return None
 
-    def get_active_players(self):
-        active_players = sum([1 for player in self.players if player.active])
-        return active_players
-
     def run_game(self):
+        print("")
+        print("start game")
         for turn in range(3,6):
             current_river = self.river[:turn]
+            print(turn - 2, current_river)
             for player in self.players:
-                if player.active:
-                    player.set_viewable_river(current_river)
-                    player.set_opponent_number(self.get_active_players())
-                    bet, decision = player.take_turn()
+                current_player = self.players[player]
+                if current_player['active']:
+                    number_of_opponents = len(self.get_active_players()) - 1
+                    bet, decision = current_player['player'].take_turn(current_river, current_player["hand"],number_of_opponents)
                     print("{} decides to {} with bet {}".format(player, decision, bet))
                     self.pot = self.pot + bet
-            if self.get_active_players() == 1:
-                break
-                    
+                    if decision == "fold":
+                        current_player['active'] = 0    
         self.score_game()
+        print("end game")
+        print("")
         return None
 
     def __str__(self):
         return "Game with {} players".format(self.players)
 
 def score_hand(cards):
-    return 'High Card Ace', 0
+    print("scoring: {}".format(cards))
+    return 0
 
 class Table():
     def __init__(self):
