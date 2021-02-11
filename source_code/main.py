@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-from poker import PokerGame
+from poker import PokerTable
 
 def run_simulation():
-    PokerGame(5)
+    PokerTable(5)
     print("simulation ran...")
 
 if __name__ == '__main__':
