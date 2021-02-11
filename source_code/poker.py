@@ -133,6 +133,11 @@ class FrenchDeck():
     def __str__(self):
         return "French Deck ({} of {} cards remaining)".format(len(self.cards),len(self.all_cards))
 
+class Player():
+    def __init__(self,name,balance):
+        self.name = name 
+        self.balance = balance
+
 class Game():
     def __init__(self,cards):
         self.cards = cards
@@ -154,9 +159,7 @@ if __name__ == '__main__':
     players = 2
     cards_per_game = 2 * 2 + 5
 
-    for game_number, hand in enumerate(deck.permute(cards_per_game,1000)):
-        print("starting game number: {}".format(game_number+1))
+    for game_number, hand in enumerate(deck.draw(cards_per_game,1000)):
         game = Game(hand)
         game.run_game()
-        print("finished game number: {}".format(game_number+1))
 
