@@ -263,7 +263,7 @@ class Table():
 
         players = initialize_players(num_of_players=self.players, balance = self.balance)
 
-        for _, hand in enumerate(deck.draw(self.players * 2 + 5,100)):
+        for _, hand in enumerate(deck.permute(self.players * 2 + 5,1000)):
             game = Game(hand,players)
             game.run_game()
         return 0
@@ -271,5 +271,3 @@ class Table():
 if __name__ == '__main__':
     casino = Table(players=2,beginning_balance=100,hands=1000)
     casino.run_simulation()
-
-
