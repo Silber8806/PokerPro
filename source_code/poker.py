@@ -208,12 +208,15 @@ def simulate_win_odds(cards,river,opponents,runtimes=1000):
     return wins/float(runtimes)
 
 def winning_hand(*hands):
+    hand_scores = []
     for hand in hands:
-        pass 
+        score = score_hand(hand) 
+        hand_scores.append(score)
+    # if 1st hand did not win return 0 else 1
     return random.choice([0,1])
 
 def score_hand(cards):
-    print("scoring: {}".format(cards))
+    #print("scoring: {}".format(cards))
     return 0
 
 class Player():
