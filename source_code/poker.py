@@ -48,6 +48,10 @@ class FrenchDeck():
         self.saved_removed_deck = None
         return None
 
+    def set_seed(self,seed):
+        random.seed(seed)
+        return None
+
     def save_deck(self):
         """ save the deck and go back to it """
         self.saved_deck = self.cards[:]
@@ -73,11 +77,11 @@ class FrenchDeck():
             internal class to handle the logic
             for creating a generator for draw class
         """
-        if num_of_cards < 1 or num_of_cards > 52:
-            raise Exception("Error: Draw has to be between 1 and 52")
-
         if hands < 1:
             raise Exception("Error: at least 1 hand needs to be drawn")
+
+        if num_of_cards < 1 or len(self.cards) > 52:
+            raise Exception("Error: Tried to draw {} has to be between 1 and {}".format(num_of_cards,len(self.cards)))
 
         for _ in range(hands):
             if num_of_cards >= len(self.cards):
@@ -144,10 +148,6 @@ class FrenchDeck():
         else:
             return self._permute(num_of_cards=num_of_cards,hands=hands)
 
-    def set_seed(self,seed):
-        random.seed(seed)
-        return None
-
     def remove_card(self,rank,suit):
         card_to_find = Card(rank = rank, suit = suit)
         if card_to_find not in self.all_cards:
@@ -192,7 +192,11 @@ def simulate_win_odds(cards,river,opponents,runtimes=1000):
     wins = 0
     for _ in range(runtimes):
         hands_to_compare = []
-        current_river = river[:] + deck.draw(draw_river)
+        if len(river) < 5:
+            new_river = deck.draw(draw_river)
+        else:
+            new_river = []
+        current_river = river[:] + new_river
         player_hand = start_hand[:] + current_river[:]
         hands_to_compare.append(player_hand)
         for _ in range(opponents):
@@ -233,29 +237,22 @@ class Player():
         self.decisions = ['fold','check','call','bet']
         self.strategy = None
 
-    def pre_flob_bet(self,hand,opponents,call_bid,current_bid,pot):
-        win_probabilty = simulate_win_odds(cards=hand,river=None,opponents=opponents,runtimes=100)
-        if win_probabilty < .45:
-            return None
-        else:
+    def make_bet(self,hand,river,opponents,call_bid,current_bid,pot):
+        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=5)
+        expected_profit = round(win_probabilty * pot - (1 - win_probabilty) * current_bid,2)
+
+        forced_raise = random.randint(0,10)
+
+        if forced_raise < 2:
+            return current_bid + call_bid + 20
+
+        if opponents == 0:
             return current_bid + call_bid
 
-    def take_turn(self, river, hand, opponents):
-        if opponents == 0:
-            return 0, 'check'
-
-        bet = 0
-
-        decision = random.choice(self.decisions)
-
-        if (decision == 'bet'):
-            bet = self.make_bet(50)
-        
-        return bet, decision
-
-    def make_bet(self,bet):
-        self.balance = self.balance - bet 
-        return bet
+        if expected_profit > 0:
+            return current_bid + call_bid
+        else:
+            return None
 
     def __repr__(self):
         return "{}".format(self.name)
@@ -276,10 +273,21 @@ class Game():
         self.winner = None
         self.big_blind = 10
         self.small_blind = 5
-        self.pot = 15
         self.players[-1]['bet'] = self.big_blind
         self.players[-2]['bet'] = self.small_blind 
         self.current_bid = 10
+
+    def get_current_pot(self):
+        current_pot = 0
+        for player in self.players:
+            current_pot += player['bet']
+        return current_pot
+
+    def get_required_bid(self):
+        required_bid = 0
+        for player in self.players:
+            required_bid = max(required_bid,player['bet'])
+        return required_bid
 
     def get_num_active_opponents(self):
         return len(self.get_active_players()) - 1
@@ -287,50 +295,110 @@ class Game():
     def get_active_players(self):
         return [player for player in self.players if player['active']]
 
-    def score_game(self):
-        active_players = self.get_active_players()
-
-        if len(active_players) == 1:
-            self.winner = active_players
-            print("player {} won!".format(self.winner[0]['player']))
-        else: 
-            for player in self.players:
-                current_player = self.players[player]
-                print("checking win condition for {}".format(player))
-                score_hand(current_player['hand'] + self.river)
-        return None
+    def all_players_checked(self):
+        unique_bets = len(list(set([player['bet'] for player in self.players])))
+        if unique_bets == 1:
+            return True 
+        else:
+            return False
 
     def pre_flop(self):
         for player, hand in zip(self.players,chunk(self.cards[5:],2)):
             player['hand'] = hand
 
+        print("pre-flob bidding")
         # max bid on limit poker is 3 rounds
+        current_river = None
+
         for _ in range(0,3):
-            for player in self.players:
+            for player in self.get_active_players():
                 agent = player['player']
                 if player['active']:
                     current_opponents = self.get_num_active_opponents()
                     current_hand = player['hand']
-                    required_bid = self.current_bid
+                    required_bid = self.get_required_bid()
                     current_bid = player['bet']
-                    bid = agent.pre_flob_bet(current_hand,current_opponents,required_bid, current_bid, self.pot)
-                    if bid is None:
-                        player['active'] = False 
-                    else:
-                        current_bid = bid 
+                    call_bid = required_bid - current_bid
+                    bid = agent.make_bet(current_hand, current_river, current_opponents,call_bid, current_bid, self.get_current_pot())
                     print("current {} for {}".format(bid,player['player']))
-            
+                    if bid is None:
+                        player['active'] = 0 
+                    else:
+                        player['bet'] = bid
+
+            opponents_left = self.get_num_active_opponents()
+            if (opponents_left == 0):
+                break
+
+            all_checked = self.all_players_checked()
+            if (all_checked):
+                break
+
         return None
 
     def post_flop(self):
+
+        self.players = self.players[-2:] + self.players[:-2]  # handle post-flop starts at small blind by poker rules
+
+        print("post flob bidding")
+        for turn in range(3,6):
+            current_river = self.river[:turn]
+            for _ in range(0,3):
+                for player in self.get_active_players():
+                    agent = player['player']
+                    if player['active']:
+                        current_opponents = self.get_num_active_opponents()
+                        current_hand = player['hand']
+                        required_bid = self.get_required_bid()
+                        current_bid = player['bet']
+                        call_bid = required_bid - current_bid
+                        bid = agent.make_bet(current_hand,current_river,current_opponents,call_bid, current_bid, self.get_current_pot())
+                        print("current {} for {}".format(bid,player['player']))
+                        if bid is None:
+                            player['active'] = 0 
+                        else:
+                            player['bet'] = bid
+
+                opponents_left = self.get_num_active_opponents()
+                if (opponents_left == 0):
+                    break
+
+                all_checked = self.all_players_checked()
+                if (all_checked):
+                    break
+            opponents_left = self.get_num_active_opponents()
+            if (opponents_left == 0):
+                break
+        return None
+
+    def check_last_surviving_player(self):
+        opponents_left = self.get_num_active_opponents()
+        winning_player = None
+        if (opponents_left) == 0:
+            for player in self.players:
+                if player['active']:
+                    winning_player = player 
+                    break 
+            print('winner is {}'.format(winning_player['player']))
+        return 0
+
+    def score_game(self):
+        active_players = self.get_active_players()
+
+        for player in self.get_active_players():
+            print("checking win condition for {}".format(player))
+            score_hand(player['hand'] + self.river)
+
         return None
 
     def run_game(self):
         print("")
         print("start game")
         self.pre_flop()
-        #self.post_flop() # re-working post_flop
-        #self.score_game() # re-working score game
+        self.check_last_surviving_player()
+        self.post_flop() # re-working post_flop
+        self.check_last_surviving_player()
+        self.score_game() # re-working score game
         print("end game")
         print("")
         return None
@@ -361,5 +429,5 @@ class Table():
         return 0
 
 if __name__ == '__main__':
-    casino = Table(players=2,beginning_balance=100,hands=1000)
+    casino = Table(players=6,beginning_balance=100,hands=1000)
     casino.run_simulation()
