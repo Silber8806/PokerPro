@@ -26,3 +26,12 @@ if __name__ == '__main__':
 
     for hand in deck.permute(7,3):
         print(hand)
+        last_hand = hand
+
+    print("switching last hand to hand for exercise")
+    hand = last_hand
+
+    print("implement the following:")
+    print(score_hand(hand))
+
+    print("should say if it's a straight, double, triple etc or maybe a rank!")
