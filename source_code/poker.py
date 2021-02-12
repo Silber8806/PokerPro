@@ -252,9 +252,8 @@ class Player():
         win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=5)
         expected_profit = round(win_probabilty * pot - (1 - win_probabilty) * current_bid,2)
 
-        forced_raise = random.randint(0,10)
-
         if opponents == 0:
+            # if you have no opponents left...just stay
             bet_amount = call_bid
             if bet_amount > self.balance:
                 bet_amount = self.balance
@@ -263,7 +262,9 @@ class Player():
                 self.pay_bid(bet_amount)
             return bet_amount + current_bid
 
+        forced_raise = random.randint(0,10)
         if raise_allowed:
+            # randomly raise without thinking a random percent of the time
             if forced_raise < 5:
                 bet_amount = call_bid + 10
                 if bet_amount > self.balance:
@@ -273,6 +274,7 @@ class Player():
                     self.pay_bid(bet_amount)
                 return bet_amount + current_bid
 
+        # if you statistically will make money, call the bid else just
         if expected_profit > 0:
             bet_amount = call_bid
             if bet_amount > self.balance:
@@ -297,17 +299,17 @@ class Game():
     """
     def __init__(self,cards,players):
         self.cards = cards
-        self.players = [{"player": player, "active": 1, "hand": None, "bet": 0} for player in players]
         self.river = cards[:5]
         self.winner = None
-        self.big_blind = 0
-        self.small_blind = 0
+        self.big_blind = 10
+        self.small_blind = 5
+        self.minumum = self.small_blind * 10
+        self.players = [{"player": player, "active": 1, "hand": None, "bet": 0} for player in players if player.balance > self.minumum] # get rid of losers that don't have enough money
         self.players[-1]['bet'] = self.big_blind
         self.players[-1]['player'].pay_bid(self.big_blind)
         self.players[-2]['bet'] = self.small_blind 
         self.players[-2]['player'].pay_bid(self.small_blind)
-        self.current_bid = 10
-
+        
     def get_current_pot(self):
         current_pot = 0
         for player in self.players:
@@ -469,5 +471,5 @@ class Table():
         return 0
 
 if __name__ == '__main__':
-    casino = Table(players=6,beginning_balance=1000,hands=1000)
+    casino = Table(players=6,beginning_balance=1000,hands=200)
     casino.run_simulation()
