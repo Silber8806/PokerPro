@@ -267,7 +267,7 @@ class Game():
     """
     def __init__(self,cards,players):
         self.cards = cards
-        self.players = [{"player": player, "active": 1, "hand": None, "bet": 0, 'small_blind': 1} for player in players]
+        self.players = [{"player": player, "active": 1, "hand": None, "bet": 0} for player in players]
         self.river = cards[:5]
         self.pot = 0
         self.winner = None
@@ -421,11 +421,11 @@ class Table():
 
         players = initialize_players(num_of_players=self.players, balance = self.balance)
 
-        for _, hand in enumerate(deck.permute(self.players * 2 + 5,2)):
+        for _, hand in enumerate(deck.permute(self.players * 2 + 5,self.hands)):
             game = Game(hand,players)
             game.run_game()
         return 0
 
 if __name__ == '__main__':
-    casino = Table(players=6,beginning_balance=100,hands=1000)
+    casino = Table(players=6,beginning_balance=1000,hands=10)
     casino.run_simulation()
