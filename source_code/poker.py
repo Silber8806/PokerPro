@@ -237,20 +237,50 @@ class Player():
         self.decisions = ['fold','check','call','bet']
         self.strategy = None
 
-    def make_bet(self,hand,river,opponents,call_bid,current_bid,pot):
+    def get_pot(self,pot_value):
+        self.balance = self.balance + pot_value
+
+    def pay_bid(self,pay_bid):
+        if pay_bid < 0:
+            raise Exception("amount ${} bet needs to be positive!".format(pay_bid))
+        if self.balance - pay_bid < 0:
+            raise Exception("amount paid: {} is greater than balance {}".format(pay_bid,self.balance))
+        else:
+            self.balance = self.balance - pay_bid
+
+    def make_bet(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=5)
         expected_profit = round(win_probabilty * pot - (1 - win_probabilty) * current_bid,2)
 
         forced_raise = random.randint(0,10)
 
-        if forced_raise < 2:
-            return current_bid + call_bid + 20
-
         if opponents == 0:
-            return current_bid + call_bid
+            bet_amount = call_bid
+            if bet_amount > self.balance:
+                bet_amount = self.balance
+                self.pay_bid(self.balance)
+            else:
+                self.pay_bid(bet_amount)
+            return bet_amount + current_bid
+
+        if raise_allowed:
+            if forced_raise < 5:
+                bet_amount = call_bid + 10
+                if bet_amount > self.balance:
+                    bet_amount = self.balance
+                    self.pay_bid(self.balance)
+                else:
+                    self.pay_bid(bet_amount)
+                return bet_amount + current_bid
 
         if expected_profit > 0:
-            return current_bid + call_bid
+            bet_amount = call_bid
+            if bet_amount > self.balance:
+                bet_amount = self.balance
+                self.pay_bid(self.balance)
+            else:
+                self.pay_bid(bet_amount)
+            return bet_amount + current_bid
         else:
             return None
 
@@ -258,7 +288,7 @@ class Player():
         return "{}".format(self.name)
 
     def __str__(self):
-        return "{}".format(self.name)
+        return "{} [balance: ${}]".format(self.name,self.balance)
 
 class Game():
     """
@@ -269,12 +299,13 @@ class Game():
         self.cards = cards
         self.players = [{"player": player, "active": 1, "hand": None, "bet": 0} for player in players]
         self.river = cards[:5]
-        self.pot = 0
         self.winner = None
-        self.big_blind = 10
-        self.small_blind = 5
+        self.big_blind = 0
+        self.small_blind = 0
         self.players[-1]['bet'] = self.big_blind
+        self.players[-1]['player'].pay_bid(self.big_blind)
         self.players[-2]['bet'] = self.small_blind 
+        self.players[-2]['player'].pay_bid(self.small_blind)
         self.current_bid = 10
 
     def get_current_pot(self):
@@ -310,7 +341,8 @@ class Game():
         # max bid on limit poker is 3 rounds
         current_river = None
 
-        for _ in range(0,3):
+        for turn in range(1,4):
+            print("pre-bid round: {}".format(turn))
             for player in self.get_active_players():
                 agent = player['player']
                 if player['active']:
@@ -319,7 +351,8 @@ class Game():
                     required_bid = self.get_required_bid()
                     current_bid = player['bet']
                     call_bid = required_bid - current_bid
-                    bid = agent.make_bet(current_hand, current_river, current_opponents,call_bid, current_bid, self.get_current_pot())
+                    raise_allowed = turn != 3
+                    bid = agent.make_bet(current_hand, current_river, current_opponents,call_bid, current_bid, self.get_current_pot(),raise_allowed)
                     print("current {} for {}".format(bid,player['player']))
                     if bid is None:
                         player['active'] = 0 
@@ -334,6 +367,8 @@ class Game():
             if (all_checked):
                 break
 
+            print("current pot is: ${}".format(self.get_current_pot()))
+
         return None
 
     def post_flop(self):
@@ -341,9 +376,13 @@ class Game():
         self.players = self.players[-2:] + self.players[:-2]  # handle post-flop starts at small blind by poker rules
 
         print("post flob bidding")
-        for turn in range(3,6):
-            current_river = self.river[:turn]
-            for _ in range(0,3):
+        for turn in range(1,4):
+            num_of_river_cards=turn + 2
+            current_river = self.river[:num_of_river_cards]
+            print("starting river turn: {}".format(turn))
+            print("current community/river is: {}".format(current_river))
+            for bidding_round in range(1,4):
+                print("bidding round is: {}".format(bidding_round))
                 for player in self.get_active_players():
                     agent = player['player']
                     if player['active']:
@@ -352,7 +391,8 @@ class Game():
                         required_bid = self.get_required_bid()
                         current_bid = player['bet']
                         call_bid = required_bid - current_bid
-                        bid = agent.make_bet(current_hand,current_river,current_opponents,call_bid, current_bid, self.get_current_pot())
+                        raise_allowed = bidding_round != 3
+                        bid = agent.make_bet(current_hand,current_river,current_opponents,call_bid, current_bid, self.get_current_pot(),raise_allowed)
                         print("current {} for {}".format(bid,player['player']))
                         if bid is None:
                             player['active'] = 0 
@@ -366,23 +406,27 @@ class Game():
                 all_checked = self.all_players_checked()
                 if (all_checked):
                     break
+
+                print("current pot is: ${}".format(self.get_current_pot()))
+
             opponents_left = self.get_num_active_opponents()
             if (opponents_left == 0):
                 break
         return None
 
-    def check_last_surviving_player(self):
-        opponents_left = self.get_num_active_opponents()
-        winning_player = None
-        if (opponents_left) == 0:
-            for player in self.players:
-                if player['active']:
-                    winning_player = player 
-                    break 
-            print('winner is {}'.format(winning_player['player']))
-        return 0
-
     def score_game(self):
+        # dumb currently, just split pot evenly until we get proper scoring hand function
+        number_of_players = len(self.get_active_players())
+        reward = self.get_current_pot() // number_of_players
+        casino_free_money = self.get_current_pot() % number_of_players
+
+        print("splitting the current pot: ${} by {} people".format(self.get_current_pot(),number_of_players))
+        for player in self.get_active_players():
+            player['player'].get_pot(reward)
+            print("{} got a reward of ${} for not folding".format(player['player'],reward))
+        print("casino gets the remainder ${}".format(casino_free_money))
+        # dumb currently, just split pot evenly until we get proper scoring hand function
+
         for player in self.get_active_players():
             print("checking win condition for {}".format(player))
             score_hand(player['hand'] + self.river)
@@ -393,9 +437,7 @@ class Game():
         print("")
         print("start game")
         self.pre_flop()
-        self.check_last_surviving_player()
         self.post_flop() # re-working post_flop
-        self.check_last_surviving_player()
         self.score_game() # re-working score game
         print("end game")
         print("")
@@ -427,5 +469,5 @@ class Table():
         return 0
 
 if __name__ == '__main__':
-    casino = Table(players=6,beginning_balance=1000,hands=10)
+    casino = Table(players=6,beginning_balance=1000,hands=1000)
     casino.run_simulation()
