@@ -190,7 +190,6 @@ def simulate_win_odds(cards,river,opponents,runtimes=1000):
     draw_river = 5 - len(river)
 
     wins = 0
-    losses = 0
     for _ in range(runtimes):
         hands_to_compare = []
         current_river = river[:] + deck.draw(draw_river)
@@ -203,6 +202,8 @@ def simulate_win_odds(cards,river,opponents,runtimes=1000):
 
         if is_win:
             wins += 1
+
+        deck.load_deck()
 
     return wins/float(runtimes)
 
