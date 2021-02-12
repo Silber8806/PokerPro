@@ -150,6 +150,9 @@ class Player():
         self.decisions = ['fold','check','call','bet']
         self.strategy = None
 
+    def pre_flob_bet(self,hand,opponents):
+        return 0, 'check'
+
     def take_turn(self, river, hand, opponents):
         if opponents == 0:
             return 0, 'check'
@@ -193,15 +196,18 @@ class Game():
     """
     def __init__(self,cards,players):
         self.cards = cards
-        self.players = {player.name: {"player": player, "active": 1, "hand": None} for player in players}
+        self.players = [{"player": player, "active": 1, "hand": None, "bet": 0} for player in players]
         self.river = cards[:5]
         self.pot = 0
         self.winner = None
-        for player, hand in zip(self.players,chunk(cards[5:],2)):
-            self.players[player]['hand'] = hand
+        self.big_blind = 10
+        self.small_blind = 5
+
+    def get_num_active_opponents(self):
+        return len(self.get_active_players())
 
     def get_active_players(self):
-        return [self.players[player] for player in self.players if self.players[player]['active']]
+        return [player for player in self.players if player['active']]
 
     def score_game(self):
         active_players = self.get_active_players()
@@ -216,25 +222,29 @@ class Game():
                 score_hand(current_player['hand'] + self.river)
         return None
 
-    def reward_player(self,pot):
+    def pre_flop(self):
+        for player, hand in zip(self.players,chunk(self.cards[5:],2)):
+            player['hand'] = hand
+
+        for _ in range(0,3):
+            for player in self.players:
+                current_player = player['player']
+                if current_player['active']:
+                    current_opponents = self.get_num_active_opponents()
+                    current_hand = current_player['hand']
+                    current_player.pre_flob_bet(current_hand,current_opponents)
+            
+        return None
+
+    def post_flop(self):
         return None
 
     def run_game(self):
         print("")
         print("start game")
-        for turn in range(3,6):
-            current_river = self.river[:turn]
-            print(turn - 2, current_river)
-            for player in self.players:
-                current_player = self.players[player]
-                if current_player['active']:
-                    number_of_opponents = len(self.get_active_players()) - 1
-                    bet, decision = current_player['player'].take_turn(current_river, current_player["hand"],number_of_opponents)
-                    print("{} decides to {} with bet {}".format(player, decision, bet))
-                    self.pot = self.pot + bet
-                    if decision == "fold":
-                        current_player['active'] = 0    
-        self.score_game()
+        self.pre_flop()
+        #self.post_flop()
+        #self.score_game()
         print("end game")
         print("")
         return None
