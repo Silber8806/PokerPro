@@ -383,8 +383,6 @@ class Game():
         return 0
 
     def score_game(self):
-        active_players = self.get_active_players()
-
         for player in self.get_active_players():
             print("checking win condition for {}".format(player))
             score_hand(player['hand'] + self.river)
