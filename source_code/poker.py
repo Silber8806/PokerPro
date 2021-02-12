@@ -297,13 +297,13 @@ class Game():
         Game implements all the logic about a game including who is playing, who has not yet folded,
         how big the pot is and also implements each players turn as well as scoring the end game.
     """
-    def __init__(self,cards,players):
+    def __init__(self,cards,players,minimum_balance_to_join):
         self.cards = cards
         self.river = cards[:5]
         self.winner = None
         self.big_blind = 10
         self.small_blind = 5
-        self.minumum = self.small_blind * 10
+        self.minumum = minimum_balance_to_join * 10
         self.players = [{"player": player, "active": 1, "hand": None, "bet": 0} for player in players if player.balance > self.minumum] # get rid of losers that don't have enough money
         self.players[-1]['bet'] = self.big_blind
         self.players[-1]['player'].pay_bid(self.big_blind)
@@ -454,9 +454,10 @@ class Table():
         and than streams a set of cards, which it uses per game.  This needs to be 
         flehsed out a bit.
     """
-    def __init__(self,players,beginning_balance,hands):
+    def __init__(self,players,beginning_balance,minimum_play_balance,hands):
         self.players = players 
         self.balance = beginning_balance
+        self.min_balance = minimum_play_balance
         self.hands = hands
 
     def run_simulation(self):
@@ -466,10 +467,10 @@ class Table():
         players = initialize_players(num_of_players=self.players, balance = self.balance)
 
         for _, hand in enumerate(deck.permute(self.players * 2 + 5,self.hands)):
-            game = Game(hand,players)
+            game = Game(hand,players,self.min_balance)
             game.run_game()
         return 0
 
 if __name__ == '__main__':
-    casino = Table(players=6,beginning_balance=1000,hands=200)
+    casino = Table(players=6,beginning_balance=1000,minimum_play_balance=50,hands=200)
     casino.run_simulation()
