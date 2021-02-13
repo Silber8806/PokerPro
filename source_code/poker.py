@@ -9,6 +9,7 @@ import collections
 # so if you have a card instance: card.suit and card.rank
 # should return the suit and rank respectively.
 Card = collections.namedtuple('Card', ['rank', 'suit'])
+RankMap = {rank:i+1 for i, rank in enumerate([str(n) for n in range(2, 11)] + list('JQKA'))}
 
 def chunk(lst, n):
     """ 
