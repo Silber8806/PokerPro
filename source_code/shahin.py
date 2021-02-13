@@ -23,7 +23,7 @@ if __name__ == '__main__':
     print(new_card)
 
     print("You can get the strength of a rank using rank map")
-    for rank in sorted(RankMap):
+    for rank in Ranks:
         print("{} is mapped to {}".format(rank,RankMap[rank]))
 
     print("You can create hands here that are random for testing purposes")
