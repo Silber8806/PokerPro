@@ -5,6 +5,7 @@ from collections import Counter
 
 Suits = 'spades diamonds clubs hearts'.split()
 Ranks = [str(n) for n in range(2, 11)] + list('JQKA')
+RankMap = {rank:i+1 for i, rank in enumerate([str(n) for n in range(2, 11)] + list('JQKA'))} # function of rank mapped to number, greater the number the more valuable the card 2 => 1, K => 12, A => 13
 
 def is_flush(cards):
     "This function check each players hand for flush and returns dictionary of flush and the suit"
@@ -42,6 +43,10 @@ if __name__ == '__main__':
     print("How to create a Card")
     new_card = Card(rank='A',suit='spades')
     print(new_card)
+
+    print("You can get the strength of a rank using rank map")
+    for rank in Ranks:
+        print("{} is mapped to {}".format(rank,RankMap[rank]))
 
     print("You can create hands here that are random for testing purposes")
     '''
