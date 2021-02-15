@@ -587,5 +587,5 @@ class Table():
         return 0
 
 if __name__ == '__main__':
-    casino = Table(players=6,beginning_balance=1000,minimum_play_balance=50,hands=200) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
+    casino = Table(players=6,beginning_balance=1000,minimum_play_balance=50,hands=10) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
     casino.run_simulation() # start the actual simulation
