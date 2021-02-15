@@ -74,17 +74,49 @@ def is_straight(cards):
                     straight={'High_straight_on':Ranks[sort_rank[card_index+4]]}
         card_index+=1
     return straight
-
-
-    
+#### ned to find a better way of creating an object for each hand with their rank and suit instead of creating the list each time for any of the define
+#### defined function (i.e; for any of the is_straight, is_flush, number_of_kind I am recreating the list for ranking or suit) 
+def number_of_kind(cards):
+    "This function returns highes number of a kind anywhere between 2 to 4 if there is less than 2 of a kind it returns highes card"
+    card_rank=[]
+    for card in cards:
+        card_rank.append(card.rank)
+    rank_set=list(Counter(card_rank).keys())
+    rank_repetition=list(Counter(card_rank).values())
+    max_repetition=max(rank_repetition)
+    if max_repetition==4:
+        return {'number_of_kind':4,'number_of_kind_on':rank_set[rank_repetition.index(max_repetition)]}
+    elif max_repetition==3:
+        return {'number_of_kind':4,'number_of_kind_on':rank_set[rank_repetition.index(max_repetition)]}
+    elif max_repetition==2:
+        #need to check how many pairs we have and then select the highest two pairs if there are more than one.
+        pair_rank=[]
+        for repeat_index in range(len(rank_repetition)):
+            if rank_repetition[repeat_index]==2:
+                pair_rank_index=Ranks.index(rank_set[repeat_index])
+                pair_rank.append(pair_rank_index)
+        number_of_pairs=len(pair_rank)
+        if number_of_pairs==1:
+            return {'number_of_kind':2,'number_of_pair':1,'number_of_kind_on':Ranks[pair_rank[0]]}
+        elif number_of_pairs==2:
+            return {'number_of_kind':2,'number_of_pair':2,'number_of_kind_on':[Ranks[(pair_rank[i])] for i in range(2)]}
+        else:
+            assert number_of_pairs==3, "number of pairs must be 3"
+            pair_rank=sorted(pair_rank)
+            #removing lowest pair
+            pair_rank.pop(0)
+        return {'number_of_kind':2,'number_of_pair':2,'number_of_kind_on':[Ranks[(pair_rank[i])] for i in range(2)]}
+    else:
+        return {}
+            
 
     if len(cards)<5: 
         raise Exception("Need at least 5 cards to check for flush")
         return 0
 
     return 0
-
-
+## need to add a function to pick the highest card
+## need to add a logic if I have full house on a hand it ignores three of the kind
 def score_hand(cards):
     print("scoring: {}".format(cards))
     if (len(cards) != 7):
@@ -104,6 +136,11 @@ def score_hand(cards):
         else:
             print("\n\n\n******************************Congratulations**straight******************\n\n\n")
             print("This set of card is high straight on ",straight['High_straight_on'])
+    
+    numb_of_kind=number_of_kind(cards)
+    if numb_of_kind:
+        print("\n\n\n******************************Congratulations**on number of kinds******************\n\n\n")
+        print(numb_of_kind)
 
 if __name__ == '__main__':
     '''
