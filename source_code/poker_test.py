@@ -18,6 +18,18 @@ def create_card_sequence(notation):
         card_list.append(new_card)
     return card_list
 
+def test_number_of_hands():
+    deck = FrenchDeck()
+
+    hands = []
+    for hand in deck.permute(7,10):
+        hands.append(hand)
+
+    new_hand = deck.permute(10)
+
+    assert len(hands) == 10
+    assert len(new_hand) == 10
+
 def test_double():
     double_card_hand = create_card_sequence('asah9s8s7s3s2s')
     result = number_of_kind(double_card_hand)
