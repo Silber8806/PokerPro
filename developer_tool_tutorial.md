@@ -93,3 +93,52 @@ introduce a bug into production that needs to be backed out of or want to review
 to read jupyter notebooks online in a shared environment.  Most importantly, github let's a team of 15 people work together by having each of them work on their 
 own copy of code and than selectively choosing/reviewing the code that gets merged into main, which typically gets used on actual production servers.  Also!  You 
 can show it off to future employers by just giving them your github address.
+
+# Virtual Environment 
+
+You can set up a virtual environment in python (Windows) using the following:
+
+```{commandline}
+virtualenv venv
+```
+
+In the root directory of this project.  You can than do the following:
+
+```{commandline}
+venv\Scripts\activate.bat 
+```
+
+To activate the virtual environment.  The purpose of a virtual environment
+is to provide an area to download libraries without conflicting with your
+global python installation (as well as a local python copy).  Since installing 
+packages can change the version number. This can create software related 
+conflicts, which trickle down to your code.  Basically, an accidental software 
+update can ruin your hour.
+
+# Installing libraries
+
+Once you have virtual env set up.  You can install the libraries.  Navigate to the
+folder with requirements.txt file and do the following:
+
+```{commandline}
+pip install -r requirements.txt
+```
+
+The only reason so far to do this is to get pytest.  pytest allows you to run tests
+against your code to make sure it is consistent and create a gurantee that it is 
+functioning.  If requirements.txt file doesn't work, than you can do the following:
+
+```{commandline}
+pip install pytest==6.2.2 
+```
+
+# Running pytests or tests against the code.
+
+Once you install pytest, you can run: 
+
+```{commandline}
+pytest
+```
+
+It will run all files with test in them and any funciton with test in it's name.  We 
+can use this mostly to run the functions in poker_test.py.
