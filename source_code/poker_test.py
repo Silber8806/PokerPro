@@ -18,6 +18,9 @@ def create_card_sequence(notation):
         card_list.append(new_card)
     return card_list
 
+def create_card_sequence_from_list(card_list):
+    return list(map(create_card,card_list))
+
 def test_number_of_hands():
     deck = FrenchDeck()
 
