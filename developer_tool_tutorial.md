@@ -115,5 +115,30 @@ packages can change the version number. This can create software related
 conflicts, which trickle down to your code.  Basically, an accidental software 
 update can ruin your hour.
 
+# Installing libraries
 
+Once you have virtual env set up.  You can install the libraries.  Navigate to the
+folder with requirements.txt file and do the following:
 
+```{commandline}
+pip install -r requirements.txt
+```
+
+The only reason so far to do this is to get pytest.  pytest allows you to run tests
+against your code to make sure it is consistent and create a gurantee that it is 
+functioning.  If requirements.txt file doesn't work, than you can do the following:
+
+```{commandline}
+pip install pytest==6.2.2 
+```
+
+# Running pytests or tests against the code.
+
+Once you install pytest, you can run: 
+
+```{commandline}
+pytest
+```
+
+It will run all files with test in them and any funciton with test in it's name.  We 
+can use this mostly to run the functions in poker_test.py.
