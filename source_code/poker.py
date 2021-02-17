@@ -14,6 +14,12 @@ import time
 Card = collections.namedtuple('Card', ['rank', 'suit'])
 RankMap = {rank:i+1 for i, rank in enumerate([str(n) for n in range(2, 11)] + list('JQKA'))}
 
+def card_to_char(card):
+    if card:
+        return card.rank[0] + card.suit[0]
+    else:
+        return '00'
+
 def chunk(lst, n):
     """ 
         This just chunks a list into pieces, found on stackoverflow
@@ -275,11 +281,13 @@ class Player():
         self.decisions = ['fold','check','call','bet']
         self.strategy = None
         self.balance_history = []
+        self.hand_history = []
         self.games_played = []
         self.predicted_win = []
 
     def register_for_game(self,game_id):
         self.games_played.append(game_id)
+        self.current_game = game_id
         return None 
 
     def update_balance_history(self):
@@ -321,8 +329,26 @@ class Player():
             return <number> -> your total bet for this turn.  Most be equal or greater than current_bid + call_bid.
             return None -> you folded this hand and lose all your money.
         """
-        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=5)
+        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=10)
         expected_profit = round(win_probabilty * pot - (1 - win_probabilty) * current_bid,2)
+
+        def make_recorder():
+            river_record = [None for i in range(7)]
+            if river:
+                for i, card in enumerate(sorted(river)):
+                    river_record[i] = card
+            converted_hands = ''.join(map(card_to_char,sorted(hand[:])))
+            converted_river_record = ''.join(map(card_to_char,river_record[:]))
+            shortform_hand = converted_hands + converted_river_record
+            all_cards = [self.current_game] + [win_probabilty] + [opponents] + [shortform_hand]
+             
+            def record_bet(bet):
+                data_tuple = all_cards[:] + [bet]
+                self.hand_history.append(data_tuple)
+                return None
+            return record_bet
+
+        bet_recorder = make_recorder()
 
         if opponents == 0:
             # if you have no opponents left...just stay
@@ -330,8 +356,10 @@ class Player():
             if bet_amount > self.balance:
                 bet_amount = self.balance
                 self.pay_bid(self.balance)
+                bet_recorder(self.balance)
             else:
                 self.pay_bid(bet_amount)
+                bet_recorder(bet_amount)
             return bet_amount + current_bid
 
         forced_raise = random.randint(0,10)
@@ -342,8 +370,10 @@ class Player():
                 if bet_amount > self.balance:
                     bet_amount = self.balance
                     self.pay_bid(self.balance)
+                    bet_recorder(self.balance)
                 else:
                     self.pay_bid(bet_amount)
+                    bet_recorder(bet_amount)
                 return bet_amount + current_bid
 
         # if you statistically will make money, call the bid else just fold
@@ -352,10 +382,13 @@ class Player():
             if bet_amount > self.balance:
                 bet_amount = self.balance
                 self.pay_bid(self.balance)
+                bet_recorder(self.balance)
             else:
                 self.pay_bid(bet_amount)
+                bet_recorder(bet_amount)
             return bet_amount + current_bid
         else:
+            bet_recorder(None)
             return None
 
     def __repr__(self):
@@ -620,6 +653,8 @@ class Table():
             run a quick analysis and statistics section for the players...
         """
 
+        return 0
+
         script_dir = os.path.dirname(__file__)
         data_dir = os.path.join(script_dir,'data')
 
@@ -643,4 +678,5 @@ if __name__ == '__main__':
     for _ in range(10):
         casino = Table(players=6,beginning_balance=1000,minimum_play_balance=50,hands=1000) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
         casino.run_simulation() # start the actual simulation
-        casino.run_analysis()
+        casino.run_analysis() # only remove comment if you want to generate files for the game
+        break
