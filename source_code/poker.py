@@ -346,7 +346,6 @@ class AlwaysCallPlayer(GenericPlayer):
         return bet_amount + current_bid
 
 class Player(GenericPlayer):
-
     def make_bet(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         """
             This is the only strategy for playing cards that I've implemented.  It's not done
@@ -609,8 +608,8 @@ class Game():
             #print("checking win condition for {}".format(player))
             score_hand(player['hand'] + self.river)
 
-        #for player in self.players:
-            #player['player'].update_balance_history()
+        for player in self.players:
+            player['player'].update_balance_history()
 
         return None
 
@@ -647,14 +646,9 @@ class Table():
         """ create new players with certain balance of dollars to play with"""
         players = []
         for player in range(self.player_num):
-            
             balance = self.balance 
-            if player == 0:
-                name = "players - standard - " + str(player + 1)
-                new_player = Player(name,balance)
-            else:
-                name = "players - always call - " + str(player + 1)
-                new_player = AlwaysCallPlayer(name,balance)
+            name = "players - standard - " + str(player + 1)
+            new_player = Player(name,balance)
             players.append(new_player)
 
         self.players = players
