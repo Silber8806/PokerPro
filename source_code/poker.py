@@ -263,12 +263,14 @@ def score_hand(cards):
     #print("scoring: {}".format(cards))
     return 0
 
-class Player():
+class GenericPlayer(object):
+
     """
         This class will keep information about the player between games and 
         also stores the players strategy and decision making abilities.  
         More types of play to be added later.
     """
+
     def __init__(self,name,balance):
         """
             initialize player
@@ -312,6 +314,38 @@ class Player():
             raise Exception("amount paid: {} is greater than balance {}".format(pay_bid,self.balance))
         else:
             self.balance = self.balance - pay_bid
+
+    def __repr__(self):
+        return "{}".format(self.name)
+
+    def __str__(self):
+        return "{} [balance: ${}]".format(self.name,self.balance)
+
+class AlwaysCallPlayer(GenericPlayer):
+    def make_bet(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        if opponents == 0:
+            # if you have no opponents left...just stay
+            bet_amount = call_bid
+            if bet_amount > self.balance:
+                bet_amount = self.balance
+                self.pay_bid(self.balance)
+                #bet_recorder(self.balance)
+            else:
+                self.pay_bid(bet_amount)
+                #bet_recorder(bet_amount)
+            return bet_amount + current_bid
+
+        bet_amount = call_bid
+        if bet_amount > self.balance:
+            bet_amount = self.balance
+            self.pay_bid(self.balance)
+            #bet_recorder(self.balance)
+        else:
+            self.pay_bid(bet_amount)
+            #bet_recorder(bet_amount)
+        return bet_amount + current_bid
+
+class Player(GenericPlayer):
 
     def make_bet(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         """
@@ -390,12 +424,6 @@ class Player():
         else:
             #bet_recorder(None)
             return None
-
-    def __repr__(self):
-        return "{}".format(self.name)
-
-    def __str__(self):
-        return "{} [balance: ${}]".format(self.name,self.balance)
 
 class Game():
     """
@@ -619,9 +647,14 @@ class Table():
         """ create new players with certain balance of dollars to play with"""
         players = []
         for player in range(self.player_num):
-            name = "players" + str(player + 1)
+            
             balance = self.balance 
-            new_player = Player(name,balance)
+            if player == 0:
+                name = "players - standard - " + str(player + 1)
+                new_player = Player(name,balance)
+            else:
+                name = "players - always call - " + str(player + 1)
+                new_player = AlwaysCallPlayer(name,balance)
             players.append(new_player)
 
         self.players = players
