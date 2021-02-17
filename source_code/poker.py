@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
+import os
+import csv
 import random
 import collections
+import time
 
 # named tuple is a tuple object (immutable type) that also has names.  
 # immutable means once created they can't be modified.
@@ -17,17 +20,6 @@ def chunk(lst, n):
     """
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
-
-def initialize_players(num_of_players, balance):
-    """ create new players with certain balance of dollars to play with"""
-    players = []
-    for player in range(num_of_players):
-        name = "players" + str(player + 1)
-        balance = balance 
-        new_player = Player(name,balance)
-        players.append(new_player)
-    
-    return players
 
 class FrenchDeck():
 
@@ -282,6 +274,17 @@ class Player():
         self.loses = 0
         self.decisions = ['fold','check','call','bet']
         self.strategy = None
+        self.balance_history = []
+        self.games_played = []
+        self.predicted_win = []
+
+    def register_for_game(self,game_id):
+        self.games_played.append(game_id)
+        return None 
+
+    def update_balance_history(self):
+        self.balance_history.append(self.balance)
+        return None
 
     def get_pot(self,pot_value):
         """
@@ -381,6 +384,9 @@ class Game():
         self.players[-1]['player'].pay_bid(self.big_blind)
         self.players[-2]['bet'] = self.small_blind 
         self.players[-2]['player'].pay_bid(self.small_blind)
+
+        for player in players:
+            player.register_for_game(id(self)) # get the unique memory id for the game
         
     def get_current_pot(self):
         """
@@ -434,12 +440,12 @@ class Game():
         for player, hand in zip(self.players,chunk(self.cards[5:],2)):
             player['hand'] = hand
 
-        print("pre-flob bidding")
+        #print("pre-flob bidding")
         # max bid on limit poker is 3 rounds
         current_river = None
 
         for turn in range(1,4):  # limited texas hold-em has 3 rounds max
-            print("pre-bid round: {}".format(turn))
+            #print("pre-bid round: {}".format(turn))
             for player in self.get_active_players():  # always remove those people that folded from turnss
                 agent = player['player'] # get player object for method calls
                 current_opponents = self.get_num_active_opponents() # how many opponents does player have
@@ -449,7 +455,7 @@ class Game():
                 call_bid = required_bid - current_bid # player needs this much to continue
                 raise_allowed = turn != 3 # if 3rd turn, don't let the player raise
                 bid = agent.make_bet(current_hand, current_river, current_opponents,call_bid, current_bid, self.get_current_pot(),raise_allowed) # player submits the new bid
-                print("current {} for {}".format(bid,player['player']))
+                #print("current {} for {}".format(bid,player['player']))
                 if bid is None:  # if the player folded...than return None, they no longer have a bid
                     player['active'] = 0 
                 else:
@@ -463,7 +469,7 @@ class Game():
             if (all_checked): # if all players agreed on the same bid quit
                 break
 
-            print("current pot is: ${}".format(self.get_current_pot()))
+            #print("current pot is: ${}".format(self.get_current_pot()))
 
         return None
 
@@ -478,14 +484,14 @@ class Game():
 
         self.players = self.players[-2:] + self.players[:-2]  # handle post-flop starts at small blind by poker rules
 
-        print("post flob bidding")
+        #print("post flob bidding")
         for turn in range(1,4):
             num_of_river_cards=turn + 2  # determine number of cards in the river
             current_river = self.river[:num_of_river_cards] # the new river with the added 3 or 1 cards
-            print("starting river turn: {}".format(turn))
-            print("current community/river is: {}".format(current_river))
+            #print("starting river turn: {}".format(turn))
+            #print("current community/river is: {}".format(current_river))
             for bidding_round in range(1,4):  # here we start the 3 bidding rounds
-                print("bidding round is: {}".format(bidding_round))
+                #print("bidding round is: {}".format(bidding_round))
                 for player in self.get_active_players():  # only players that did not fold can play
                     agent = player['player'] # get player method for agent calls
                     current_opponents = self.get_num_active_opponents() # get number of opponents for player
@@ -495,7 +501,7 @@ class Game():
                     call_bid = required_bid - current_bid # extra bet required to continue
                     raise_allowed = bidding_round != 3 # don't allow raises on 3rd round
                     bid = agent.make_bet(current_hand,current_river,current_opponents,call_bid, current_bid, self.get_current_pot(),raise_allowed) # the agent submits his bid based on the info he has
-                    print("current {} for {}".format(bid,player['player']))
+                    #print("current {} for {}".format(bid,player['player']))
                     if bid is None:
                         player['active'] = 0 # if the player folds, he leaves the game
                     else:
@@ -509,7 +515,7 @@ class Game():
                 if (all_checked):
                     break
 
-                print("current pot is: ${}".format(self.get_current_pot()))
+                #print("current pot is: ${}".format(self.get_current_pot()))
 
             opponents_left = self.get_num_active_opponents()
             if (opponents_left == 0): # if only 1 person is left after a bidding round finish post flob 
@@ -531,16 +537,19 @@ class Game():
         reward = self.get_current_pot() // number_of_players # pot per player
         casino_free_money = self.get_current_pot() % number_of_players # casinos free money
 
-        print("splitting the current pot: ${} by {} people".format(self.get_current_pot(),number_of_players))
+        #print("splitting the current pot: ${} by {} people".format(self.get_current_pot(),number_of_players))
         for player in self.get_active_players(): # reward the active players
             player['player'].get_pot(reward)
-            print("{} got a reward of ${} for not folding".format(player['player'],reward))
-        print("casino gets the remainder ${}".format(casino_free_money))
+            #print("{} got a reward of ${} for not folding".format(player['player'],reward))
+        #print("casino gets the remainder ${}".format(casino_free_money))
         # dumb currently, just split pot evenly until we get proper scoring hand function
 
         for player in self.get_active_players(): # this is the actual function, still needs to be implemented
-            print("checking win condition for {}".format(player))
+            #print("checking win condition for {}".format(player))
             score_hand(player['hand'] + self.river)
+
+        for player in self.players:
+            player['player'].update_balance_history()
 
         return None
 
@@ -548,13 +557,13 @@ class Game():
         """
             This runs each phase of the game
         """
-        print("")
-        print("start game")
+        #print("")
+        #print("start game")
         self.pre_flop()
         self.post_flop() # re-working post_flop
         self.score_game() # re-working score game
-        print("end game")
-        print("")
+        #print("end game")
+        #print("")
         return None
 
     def __str__(self):
@@ -567,25 +576,71 @@ class Table():
         flehsed out a bit.
     """
     def __init__(self,players,beginning_balance,minimum_play_balance,hands):
-        self.players = players 
+        self.player_num = players 
+        self.players = None
         self.balance = beginning_balance
         self.min_balance = minimum_play_balance
         self.hands = hands
+
+    def initialize_players(self):
+        """ create new players with certain balance of dollars to play with"""
+        players = []
+        for player in range(self.player_num):
+            name = "players" + str(player + 1)
+            balance = self.balance 
+            new_player = Player(name,balance)
+            players.append(new_player)
+
+        self.players = players
+        
+        return players
 
     def run_simulation(self):
         """
             This starts a simulation for a single table with fixed number of people
         """
+        
+        start_time = time.time()
         print('started poker game')
         deck = FrenchDeck()
 
-        players = initialize_players(num_of_players=self.players, balance = self.balance) # create your players
-
-        for _, hand in enumerate(deck.permute(self.players * 2 + 5,self.hands)): # start streaming 5 cards + 2 per person.  Permute means it reshuffles each time.
-            game = Game(hand,players,self.min_balance) # Start a new game instance with settings
+        self.initialize_players() # create your players
+        
+        for _, hand in enumerate(deck.permute(self.player_num * 2 + 5,self.hands)): # start streaming 5 cards + 2 per person.  Permute means it reshuffles each time.
+            game = Game(hand,self.players,self.min_balance) # Start a new game instance with settings
             game.run_game() # start the actual simulation
+
+        elapsed_time = time.time() - start_time
+        print("ending poker game: {} games in {} seconds".format(self.hands,round(elapsed_time,2)))
+        
+        return 0
+
+    def run_analysis(self):
+        """
+            run a quick analysis and statistics section for the players...
+        """
+
+        script_dir = os.path.dirname(__file__)
+        data_dir = os.path.join(script_dir,'data')
+
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
+
+        file_name = 'poker_' + str(round(time.time(),0)) + '.csv'
+        file_loc = os.path.join(data_dir,file_name)
+
+        fieldnames = [player.name for player in self.players]
+        transactions = {player.name: [player.balance_history[i+1]-player.balance_history[i] for i in range(len(player.balance_history)-1)] for player in self.players}
+
+        with open(file_loc,'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(fieldnames)
+            writer.writerows(zip(*[transactions[key] for key in transactions]))
+
         return 0
 
 if __name__ == '__main__':
-    casino = Table(players=6,beginning_balance=1000,minimum_play_balance=50,hands=10) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
-    casino.run_simulation() # start the actual simulation
+    for _ in range(10):
+        casino = Table(players=6,beginning_balance=1000,minimum_play_balance=50,hands=1000) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
+        casino.run_simulation() # start the actual simulation
+        casino.run_analysis()
