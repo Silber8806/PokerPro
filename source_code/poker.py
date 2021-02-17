@@ -332,23 +332,23 @@ class Player():
         win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=10)
         expected_profit = round(win_probabilty * pot - (1 - win_probabilty) * current_bid,2)
 
-        def make_recorder():
-            river_record = [None for i in range(7)]
-            if river:
-                for i, card in enumerate(sorted(river)):
-                    river_record[i] = card
-            converted_hands = ''.join(map(card_to_char,sorted(hand[:])))
-            converted_river_record = ''.join(map(card_to_char,river_record[:]))
-            shortform_hand = converted_hands + converted_river_record
-            all_cards = [self.current_game] + [win_probabilty] + [opponents] + [shortform_hand]
+        # def make_recorder():
+        #     river_record = [None for i in range(7)]
+        #     if river:
+        #         for i, card in enumerate(sorted(river)):
+        #             river_record[i] = card
+        #     converted_hands = ''.join(map(card_to_char,sorted(hand[:])))
+        #     converted_river_record = ''.join(map(card_to_char,river_record[:]))
+        #     shortform_hand = converted_hands + converted_river_record
+        #     all_cards = [self.current_game] + [win_probabilty] + [opponents] + [shortform_hand]
              
-            def record_bet(bet):
-                data_tuple = all_cards[:] + [bet]
-                self.hand_history.append(data_tuple)
-                return None
-            return record_bet
+        #     def record_bet(bet):
+        #         data_tuple = all_cards[:] + [bet]
+        #         self.hand_history.append(data_tuple)
+        #         return None
+        #     return record_bet
 
-        bet_recorder = make_recorder()
+        #bet_recorder = make_recorder()
 
         if opponents == 0:
             # if you have no opponents left...just stay
@@ -356,10 +356,10 @@ class Player():
             if bet_amount > self.balance:
                 bet_amount = self.balance
                 self.pay_bid(self.balance)
-                bet_recorder(self.balance)
+                #bet_recorder(self.balance)
             else:
                 self.pay_bid(bet_amount)
-                bet_recorder(bet_amount)
+                #bet_recorder(bet_amount)
             return bet_amount + current_bid
 
         forced_raise = random.randint(0,10)
@@ -370,10 +370,10 @@ class Player():
                 if bet_amount > self.balance:
                     bet_amount = self.balance
                     self.pay_bid(self.balance)
-                    bet_recorder(self.balance)
+                    #bet_recorder(self.balance)
                 else:
                     self.pay_bid(bet_amount)
-                    bet_recorder(bet_amount)
+                    #bet_recorder(bet_amount)
                 return bet_amount + current_bid
 
         # if you statistically will make money, call the bid else just fold
@@ -382,13 +382,13 @@ class Player():
             if bet_amount > self.balance:
                 bet_amount = self.balance
                 self.pay_bid(self.balance)
-                bet_recorder(self.balance)
+                #bet_recorder(self.balance)
             else:
                 self.pay_bid(bet_amount)
-                bet_recorder(bet_amount)
+                #bet_recorder(bet_amount)
             return bet_amount + current_bid
         else:
-            bet_recorder(None)
+            #bet_recorder(None)
             return None
 
     def __repr__(self):
@@ -581,8 +581,8 @@ class Game():
             #print("checking win condition for {}".format(player))
             score_hand(player['hand'] + self.river)
 
-        for player in self.players:
-            player['player'].update_balance_history()
+        #for player in self.players:
+            #player['player'].update_balance_history()
 
         return None
 
