@@ -66,6 +66,3 @@ if __name__ == '__main__':
                 print("{} iterations".format(i))
 
 print("finished...")
-
-
-117600 * 1183
