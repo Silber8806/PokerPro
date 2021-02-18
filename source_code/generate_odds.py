@@ -3,8 +3,8 @@
 # computationally expensive...figure I'd at least try out the angle to see about compute times.  Once you get to 4-river hands...it's
 # 100s millions of hands that have to be considered...
 
+import sys
 from poker import simulate_win_odds, Card, FrenchDeck
-import multiprocessing
 
 if __name__ == '__main__':
     deck = FrenchDeck()
@@ -18,6 +18,9 @@ if __name__ == '__main__':
     same_suit = [[spade,spade2] for spade in spades for spade2 in spades if spade.rank != spade2.rank and spade.rank < spade2.rank]
 
     possible_2_pairs = doubles + off_rank + same_suit
+
+    print("If you run this past this point, it will take hours to days to complete... so early exiting...")
+    sys.exit(0)
 
     i = 0
     print("creating all 2 pair cards")
