@@ -387,12 +387,17 @@ class GenericPlayer(object):
         self.final_bet = None
         return None
 
+    def record_bet(hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        # currently not implemented...use this one to record bets...
+        return None
+
     def make_bet(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         self._set_up_bet(opponents,call_bid,current_bid,raise_allowed)
         if (self._last_man_standing()):
             print("is last man")
             return self.final_bet
         self.bet_strategy(hand,river,opponents,call_bid,current_bid,pot,raise_allowed)
+        self.record_bet(hand,river,opponents,call_bid,current_bid,pot,raise_allowed)
         return self.final_bet
 
     def __repr__(self):
@@ -441,7 +446,6 @@ class Player(GenericPlayer):
             self.call_bet()
         else:
             self.fold_bet()
-
         return None
 
 class Game():
