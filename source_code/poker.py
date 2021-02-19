@@ -17,9 +17,15 @@ RankMap = {rank:i+1 for i, rank in enumerate([str(n) for n in range(2, 11)] + li
 
 def card_to_char(card):
     if card:
-        return card.rank[0] + card.suit[0]
+        return card.rank + card.suit[0]
     else:
         return '00'
+
+def card_to_string(card):
+    if card:
+        return card.rank + '-' + card.suit
+    else:
+        return 'Z-N/A'
 
 def chunk(lst, n):
     """ 
@@ -295,6 +301,7 @@ class GenericPlayer(object):
     def register_for_game(self,game_id):
         self.games_played.append(game_id)
         self.current_game = game_id
+        self.bid_number = 0
         return None 
 
     def update_balance_history(self):
@@ -391,12 +398,22 @@ class GenericPlayer(object):
     def record_bet(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         # currently not implemented...use this one to record bets...
         self.bid_number += 1
+        river_set = [None for _ in range(5)]
+        if river is not None:
+            for i,card in enumerate(river):
+                river_set[i] = card
+        hand = sorted([card_to_string(card) for card in hand])
+        river_set = sorted([card_to_string(card) for card in river_set])
+        data_tuple = [self.current_game, self.name, self.__class__.__name__, self.bid_number,opponents,call_bid,current_bid,self.final_bet,pot,raise_allowed] + hand + river_set
+        print(data_tuple)
+        self.hand_history.append(data_tuple)
         return None
 
     def make_bet(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         self._set_up_bet(opponents,call_bid,current_bid,raise_allowed)
         if (self._last_man_standing()):
             print("is last man")
+            self.record_bet(hand,river,opponents,call_bid,current_bid,pot,raise_allowed)
             return self.final_bet
         self.bet_strategy(hand,river,opponents,call_bid,current_bid,pot,raise_allowed)
         self.record_bet(hand,river,opponents,call_bid,current_bid,pot,raise_allowed)
@@ -730,14 +747,25 @@ class Table():
         
         for i, player in enumerate(player_names):
             balance_data[i] = player + [self.balance] + balance_data[i]
-
-        print(balance_data)
         
         with open(file_loc,'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(fieldnames)
             writer.writerows(balance_data)
 
+        file_name = 'poker_hands' + str(round(time.time(),0)) + '.csv'
+        file_loc = os.path.join(data_dir,file_name)
+
+        fieldnames = ["game_id","player_name","player_type","bet_number",
+                                "opponents","call","current","final","pot","allowed",
+                                "hand1","hand2","community1","community2","community3",
+                                "community4","community5"]
+
+        with open(file_loc,'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(fieldnames) 
+            for player in self.players:
+                writer.writerows(player.hand_history)
         return 0
 
 if __name__ == '__main__':
