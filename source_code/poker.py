@@ -404,7 +404,7 @@ class GenericPlayer(object):
                 river_set[i] = card
         hand = sorted([card_to_string(card) for card in hand])
         river_set = sorted([card_to_string(card) for card in river_set])
-        data_tuple = [self.current_game, self.name, self.__class__.__name__, self.bid_number,opponents,call_bid,current_bid,self.final_bet,pot,raise_allowed] + hand + river_set
+        data_tuple = [str(int(self.current_game)), self.name, self.__class__.__name__, self.bid_number,opponents,call_bid,current_bid,self.final_bet,pot,raise_allowed] + hand + river_set
         print(data_tuple)
         self.hand_history.append(data_tuple)
         return None
@@ -740,7 +740,7 @@ class Table():
         file_name = 'poker_balances' + str(round(time.time(),0)) + '.csv'
         file_loc = os.path.join(data_dir,file_name)
 
-        fieldnames = ["player_name","player_type","beginning_balance"] + ['balance_' + str(game_id) for game_id in self.games_played]
+        fieldnames = ["player_name","player_type","beginning_balance"] + ['balance_' + str(int(game_id)) for game_id in self.games_played]
         balance_data = [[player.balance_history[i+1]-player.balance_history[i] for i in range(len(player.balance_history)-1)] 
                                     for player in self.players]
         player_names = [[player.name,player.__class__.__name__] for player in self.players]
