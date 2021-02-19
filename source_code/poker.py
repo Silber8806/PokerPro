@@ -387,7 +387,7 @@ class GenericPlayer(object):
         self.final_bet = None
         return None
 
-    def record_bet(hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+    def record_bet(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         # currently not implemented...use this one to record bets...
         return None
 
