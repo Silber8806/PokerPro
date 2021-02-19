@@ -290,6 +290,7 @@ class GenericPlayer(object):
         self.call = 0
         self.current_bet = 0
         self.final_bet = 0
+        self.bid_number = 0
 
     def register_for_game(self,game_id):
         self.games_played.append(game_id)
@@ -389,6 +390,7 @@ class GenericPlayer(object):
 
     def record_bet(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         # currently not implemented...use this one to record bets...
+        self.bid_number += 1
         return None
 
     def make_bet(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
@@ -468,9 +470,10 @@ class Game():
         self.players[-1]['player'].pay_bid(self.big_blind)
         self.players[-2]['bet'] = self.small_blind 
         self.players[-2]['player'].pay_bid(self.small_blind)
+        self.id = str(round(time.time(),0))
 
         for player in players:
-            player.register_for_game(id(self)) # get the unique memory id for the game
+            player.register_for_game(self.id) # get the unique memory id for the game
         
     def get_current_pot(self):
         """
@@ -666,6 +669,11 @@ class Table():
         self.balance = beginning_balance
         self.min_balance = minimum_play_balance
         self.hands = hands
+        self.games_played = []
+
+    def add_games_played(self,game_id):
+        self.games_played.append(game_id)
+        return None
 
     def initialize_players(self):
         """ create new players with certain balance of dollars to play with"""
@@ -693,6 +701,7 @@ class Table():
         
         for _, hand in enumerate(deck.permute(self.player_num * 2 + 5,self.hands)): # start streaming 5 cards + 2 per person.  Permute means it reshuffles each time.
             game = Game(hand,self.players,self.min_balance) # Start a new game instance with settings
+            self.add_games_played(game.id)
             game.run_game() # start the actual simulation
 
         elapsed_time = time.time() - start_time
@@ -705,24 +714,29 @@ class Table():
             run a quick analysis and statistics section for the players...
         """
 
-        return 0
-
         script_dir = os.path.dirname(__file__)
         data_dir = os.path.join(script_dir,'data')
 
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
 
-        file_name = 'poker_' + str(round(time.time(),0)) + '.csv'
+        file_name = 'poker_balances' + str(round(time.time(),0)) + '.csv'
         file_loc = os.path.join(data_dir,file_name)
 
-        fieldnames = [player.name for player in self.players]
-        transactions = {player.name: [player.balance_history[i+1]-player.balance_history[i] for i in range(len(player.balance_history)-1)] for player in self.players}
+        fieldnames = ["player_name","player_type","beginning_balance"] + ['balance_' + str(game_id) for game_id in self.games_played]
+        balance_data = [[player.balance_history[i+1]-player.balance_history[i] for i in range(len(player.balance_history)-1)] 
+                                    for player in self.players]
+        player_names = [[player.name,player.__class__.__name__] for player in self.players]
+        
+        for i, player in enumerate(player_names):
+            balance_data[i] = player + [self.balance] + balance_data[i]
 
+        print(balance_data)
+        
         with open(file_loc,'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(fieldnames)
-            writer.writerows(zip(*[transactions[key] for key in transactions]))
+            writer.writerows(balance_data)
 
         return 0
 
