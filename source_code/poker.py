@@ -392,7 +392,8 @@ class GenericPlayer(object):
         if (self._last_man_standing()):
             print("is last man")
             return self.final_bet
-        return self.bet_strategy(hand,river,opponents,call_bid,current_bid,pot,raise_allowed)
+        self.bet_strategy(hand,river,opponents,call_bid,current_bid,pot,raise_allowed)
+        return self.final_bet
 
     def __repr__(self):
         return "{}".format(self.name)
@@ -403,12 +404,12 @@ class GenericPlayer(object):
 class AlwaysCallPlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         self.call_bet()
-        return self.final_bet
+        return None
 
 class AlwaysRaisePlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         self.raise_bet(20)
-        return self.final_bet
+        return None
 
 class Player(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
@@ -433,7 +434,7 @@ class Player(GenericPlayer):
         forced_raise = random.randint(0,10)
         if forced_raise < 6:
             self.raise_bet(10)
-            return self.final_bet
+            return None
 
         # if you statistically will make money, call the bid else just fold
         if expected_profit > 0:
@@ -441,7 +442,7 @@ class Player(GenericPlayer):
         else:
             self.fold_bet()
 
-        return self.final_bet
+        return None
 
 class Game():
     """
