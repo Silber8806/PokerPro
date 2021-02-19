@@ -416,7 +416,7 @@ class AlwaysRaisePlayer(GenericPlayer):
         self.raise_bet(20)
         return None
 
-class Player(GenericPlayer):
+class SmartPlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         """
             This is the only strategy for playing cards that I've implemented.  It's not done
@@ -673,7 +673,7 @@ class Table():
         for player in range(self.player_num):
             balance = self.balance 
             name = "players - standard - " + str(player + 1)
-            new_player = AlwaysCallPlayer(name,balance)
+            new_player = SmartPlayer(name,balance)
             players.append(new_player)
 
         self.players = players
