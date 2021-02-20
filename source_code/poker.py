@@ -15,6 +15,13 @@ import time
 Card = collections.namedtuple('Card', ['rank', 'suit'])
 RankMap = {rank:i+1 for i, rank in enumerate([str(n) for n in range(2, 11)] + list('JQKA'))}
 
+# the stupidest way of preserving an index, your welcome 
+global unique_table_id
+global unique_game_id
+
+unique_table_id = 0
+unique_game_id = 0
+
 debug=0
 
 def dprint(message):
@@ -296,7 +303,7 @@ class GenericPlayer(object):
         self.loses = 0
         self.decisions = ['fold','check','call','bet']
         self.strategy = None
-        self.balance_history = []
+        self.balance_history = [self.balance]
         self.hand_history = []
         self.games_played = []
         self.predicted_win = []
@@ -479,13 +486,15 @@ class Game():
         pre-flob, post-flob and scoring of games.  The 
     """
     def __init__(self,cards,players,minimum_balance_to_join):
+        global unique_game_id
+        unique_game_id = unique_game_id + 1
         self.cards = cards
         self.river = cards[:5]
         self.winner = None
         self.big_blind = 10
         self.small_blind = 5
         # you need a minimum balance otherwise, players with $0 will join your game.
-        self.minumum = minimum_balance_to_join * 10
+        self.minumum = minimum_balance_to_join
         self.players = [{"player": player, "active": 1, "hand": None, "bet": 0} for player in players if player.balance > self.minumum] # get rid of losers that don't have enough money
 
         # every poker game has a small and big blind to prevent people from always folding unless they have pocket aces.
@@ -493,7 +502,7 @@ class Game():
         self.players[-1]['player'].pay_bid(self.big_blind)
         self.players[-2]['bet'] = self.small_blind 
         self.players[-2]['player'].pay_bid(self.small_blind)
-        self.id = str(int(round(time.time(),0)))
+        self.id = str(unique_game_id)
 
         for player in players:
             player.register_for_game(self.id) # get the unique memory id for the game
@@ -686,12 +695,15 @@ class Table():
         flehsed out a bit.
     """
     def __init__(self,players,beginning_balance,minimum_play_balance,hands):
+        global unique_table_id
+        unique_table_id += 1
         self.player_num = players 
         self.players = None
         self.balance = beginning_balance
         self.min_balance = minimum_play_balance
         self.hands = hands
         self.games_played = []
+        self.id = str(int(unique_table_id))
 
     def add_games_played(self,game_id):
         self.games_played.append(game_id)
@@ -747,10 +759,10 @@ class Table():
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
 
-        file_name = 'poker_balances' + str(round(time.time(),0)) + '.csv'
+        file_name = 'poker_balances_' + self.id + '.csv'
         file_loc = os.path.join(data_dir,file_name)
 
-        fieldnames = ["player_name","player_type","beginning_balance"] + ['balance_' + game_id for game_id in self.games_played]
+        fieldnames = ["player_name","player_type","beginning_balance"] + ['balance_' + str(game_id) for game_id in range(0,len(self.games_played))]
         balance_data = [[player.balance_history[i+1]-player.balance_history[i] for i in range(len(player.balance_history)-1)] 
                                     for player in self.players]
         player_names = [[player.name,player.__class__.__name__] for player in self.players]
@@ -763,7 +775,7 @@ class Table():
             writer.writerow(fieldnames)
             writer.writerows(balance_data)
 
-        file_name = 'poker_hands' + str(round(time.time(),0)) + '.csv'
+        file_name = 'poker_hands_' + self.id + '.csv'
         file_loc = os.path.join(data_dir,file_name)
 
         fieldnames = ["game_id","player_name","player_type","bet_number",
@@ -780,8 +792,8 @@ class Table():
 
 if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
-    for _ in range(10):
-        casino = Table(players=6,beginning_balance=1000,minimum_play_balance=50,hands=1000) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
+    for _ in range(2):
+        casino = Table(players=6,beginning_balance=100000,minimum_play_balance=50,hands=1000) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
         casino.run_simulation() # start the actual simulation
         casino.run_analysis() # only remove comment if you want to generate files for the game
     print("finished poker simulation...")
