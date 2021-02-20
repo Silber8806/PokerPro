@@ -15,6 +15,13 @@ import time
 Card = collections.namedtuple('Card', ['rank', 'suit'])
 RankMap = {rank:i+1 for i, rank in enumerate([str(n) for n in range(2, 11)] + list('JQKA'))}
 
+debug=0
+
+def dprint(message):
+    if debug == 1:
+        print(message)
+    return None
+
 def card_to_char(card):
     if card:
         return card.rank + card.suit[0]
@@ -267,7 +274,7 @@ def score_hand(cards):
         needs to be implemented.  You need to take the hand of 7 cards
         rank it so that it can be compared to other hands.
     """
-    #print("scoring: {}".format(cards))
+    #dprint("scoring: {}".format(cards))
     return 0
 
 class GenericPlayer(object):
@@ -336,13 +343,13 @@ class GenericPlayer(object):
 
     def _last_man_standing(self):
         if self.opponents == 0:
-            print("{} - is last man standing".format(self.name))
+            dprint("{} - is last man standing".format(self.name))
             self.call_bet()
             return 1
         return 0
 
     def _raise_bet(self,raise_amount,allow_all_in=True):
-        print("{} - raises {}".format(self.name,raise_amount))
+        dprint("{} - raises {}".format(self.name,raise_amount))
         if self.call + raise_amount > self.balance and allow_all_in == True:
             bet_amount = self.balance
         elif self.call + raise_amount > self.balance and allow_all_in == False:
@@ -359,7 +366,7 @@ class GenericPlayer(object):
             return None
 
     def call_bet(self,allow_all_in=True):
-        print("{} - calls/checks".format(self.name))
+        dprint("{} - calls/checks".format(self.name))
         if self.call > self.balance and allow_all_in == True:
             bet_amount = self.balance
         elif self.call > self.balance and allow_all_in == False:
@@ -391,7 +398,7 @@ class GenericPlayer(object):
         """ 
             fold your hand....
         """
-        print("{} - folds".format(self.name))
+        dprint("{} - folds".format(self.name))
         self.final_bet = None
         return None
 
@@ -405,14 +412,13 @@ class GenericPlayer(object):
         hand = sorted([card_to_string(card) for card in hand])
         river_set = sorted([card_to_string(card) for card in river_set])
         data_tuple = [self.current_game, self.name, self.__class__.__name__, self.bid_number,opponents,call_bid,current_bid,self.final_bet,pot,raise_allowed] + hand + river_set
-        print(data_tuple)
         self.hand_history.append(data_tuple)
         return None
 
     def make_bet(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         self._set_up_bet(opponents,call_bid,current_bid,raise_allowed)
         if (self._last_man_standing()):
-            print("is last man")
+            dprint("is last man")
             self.record_bet(hand,river,opponents,call_bid,current_bid,pot,raise_allowed)
             return self.final_bet
         self.bet_strategy(hand,river,opponents,call_bid,current_bid,pot,raise_allowed)
@@ -452,7 +458,7 @@ class SmartPlayer(GenericPlayer):
             return <number> -> your total bet for this turn.  Most be equal or greater than current_bid + call_bid.
             return None -> you folded this hand and lose all your money.
         """
-        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=10)
+        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=1000)
         expected_profit = round(win_probabilty * pot - (1 - win_probabilty) * current_bid,2)
 
         forced_raise = random.randint(0,10)
@@ -544,12 +550,12 @@ class Game():
         for player, hand in zip(self.players,chunk(self.cards[5:],2)):
             player['hand'] = hand
 
-        print("pre-flob bidding")
+        dprint("pre-flob bidding")
         # max bid on limit poker is 3 rounds
         current_river = None
 
         for turn in range(1,4):  # limited texas hold-em has 3 rounds max
-            print("pre-bid round: {}".format(turn))
+            dprint("pre-bid round: {}".format(turn))
             for player in self.get_active_players():  # always remove those people that folded from turnss
                 agent = player['player'] # get player object for method calls
                 current_opponents = self.get_num_active_opponents() # how many opponents does player have
@@ -559,7 +565,7 @@ class Game():
                 call_bid = required_bid - current_bid # player needs this much to continue
                 raise_allowed = turn != 3 # if 3rd turn, don't let the player raise
                 bid = agent.make_bet(current_hand, current_river, current_opponents,call_bid, current_bid, self.get_current_pot(),raise_allowed) # player submits the new bid
-                print("current {} for {}".format(bid,player['player']))
+                dprint("current {} for {}".format(bid,player['player']))
                 if bid is None:  # if the player folded...than return None, they no longer have a bid
                     player['active'] = 0 
                 else:
@@ -573,7 +579,7 @@ class Game():
             if (all_checked): # if all players agreed on the same bid quit
                 break
 
-            print("current pot is: ${}".format(self.get_current_pot()))
+            dprint("current pot is: ${}".format(self.get_current_pot()))
 
         return None
 
@@ -588,14 +594,14 @@ class Game():
 
         self.players = self.players[-2:] + self.players[:-2]  # handle post-flop starts at small blind by poker rules
 
-        print("post flob bidding")
+        dprint("post flob bidding")
         for turn in range(1,4):
             num_of_river_cards=turn + 2  # determine number of cards in the river
             current_river = self.river[:num_of_river_cards] # the new river with the added 3 or 1 cards
-            print("starting river turn: {}".format(turn))
-            print("current community/river is: {}".format(current_river))
+            dprint("starting river turn: {}".format(turn))
+            dprint("current community/river is: {}".format(current_river))
             for bidding_round in range(1,4):  # here we start the 3 bidding rounds
-                print("bidding round is: {}".format(bidding_round))
+                dprint("bidding round is: {}".format(bidding_round))
                 for player in self.get_active_players():  # only players that did not fold can play
                     agent = player['player'] # get player method for agent calls
                     current_opponents = self.get_num_active_opponents() # get number of opponents for player
@@ -605,7 +611,7 @@ class Game():
                     call_bid = required_bid - current_bid # extra bet required to continue
                     raise_allowed = bidding_round != 3 # don't allow raises on 3rd round
                     bid = agent.make_bet(current_hand,current_river,current_opponents,call_bid, current_bid, self.get_current_pot(),raise_allowed) # the agent submits his bid based on the info he has
-                    print("current {} for {}".format(bid,player['player']))
+                    dprint("current {} for {}".format(bid,player['player']))
                     if bid is None:
                         player['active'] = 0 # if the player folds, he leaves the game
                     else:
@@ -619,7 +625,7 @@ class Game():
                 if (all_checked):
                     break
 
-                print("current pot is: ${}".format(self.get_current_pot()))
+                dprint("current pot is: ${}".format(self.get_current_pot()))
 
             opponents_left = self.get_num_active_opponents()
             if (opponents_left == 0): # if only 1 person is left after a bidding round finish post flob 
@@ -638,19 +644,18 @@ class Game():
         """
         # dumb currently, just split pot evenly until we get proper scoring hand function
         number_of_players = len(self.get_active_players())  # number of players still in game
-        print(number_of_players)
         reward = self.get_current_pot() // number_of_players # pot per player
         casino_free_money = self.get_current_pot() % number_of_players # casinos free money
 
-        print("splitting the current pot: ${} by {} people".format(self.get_current_pot(),number_of_players))
+        dprint("splitting the current pot: ${} by {} people".format(self.get_current_pot(),number_of_players))
         for player in self.get_active_players(): # reward the active players
             player['player'].get_pot(reward)
-            print("{} got a reward of ${} for not folding".format(player['player'],reward))
-        print("casino gets the remainder ${}".format(casino_free_money))
+            dprint("{} got a reward of ${} for not folding".format(player['player'],reward))
+        dprint("casino gets the remainder ${}".format(casino_free_money))
         # dumb currently, just split pot evenly until we get proper scoring hand function
 
         for player in self.get_active_players(): # this is the actual function, still needs to be implemented
-            print("checking win condition for {}".format(player))
+            dprint("checking win condition for {}".format(player))
             score_hand(player['hand'] + self.river)
 
         for player in self.players:
@@ -662,13 +667,13 @@ class Game():
         """
             This runs each phase of the game
         """
-        print("")
-        print("start game")
+        dprint("")
+        dprint("start game")
         self.pre_flop()
         self.post_flop() # re-working post_flop
         self.score_game() # re-working score game
-        print("end game")
-        print("")
+        dprint("end game")
+        dprint("")
         return None
 
     def __str__(self):
@@ -695,11 +700,16 @@ class Table():
     def initialize_players(self):
         """ create new players with certain balance of dollars to play with"""
         players = []
-        for player in range(self.player_num):
+        for player in range(self.player_num - 1):
             balance = self.balance 
             name = "players - standard - " + str(player + 1)
-            new_player = SmartPlayer(name,balance)
+            new_player = AlwaysCallPlayer(name,balance)
             players.append(new_player)
+
+        name = "players - smart - 6"
+        balance = self.balance 
+        new_player = SmartPlayer(name,balance)
+        players.append(new_player)
 
         self.players = players
         
@@ -711,7 +721,7 @@ class Table():
         """
         
         start_time = time.time()
-        print('started poker game')
+        dprint('started poker game')
         deck = FrenchDeck()
 
         self.initialize_players() # create your players
@@ -722,7 +732,7 @@ class Table():
             game.run_game() # start the actual simulation
 
         elapsed_time = time.time() - start_time
-        print("ending poker game: {} games in {} seconds".format(self.hands,round(elapsed_time,2)))
+        dprint("ending poker game: {} games in {} seconds".format(self.hands,round(elapsed_time,2)))
         
         return 0
 
@@ -769,8 +779,9 @@ class Table():
         return 0
 
 if __name__ == '__main__':
+    print("starting poker simulation...(set debug=1 to see messages)")
     for _ in range(10):
-        casino = Table(players=6,beginning_balance=1000,minimum_play_balance=50,hands=10) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
+        casino = Table(players=6,beginning_balance=1000,minimum_play_balance=50,hands=1000) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
         casino.run_simulation() # start the actual simulation
         casino.run_analysis() # only remove comment if you want to generate files for the game
-        break
+    print("finished poker simulation...")
