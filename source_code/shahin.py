@@ -76,7 +76,33 @@ def is_straight(cards):
                     straight={'High_straight_on':Ranks[sort_rank[card_index+4]]}
         card_index+=1
     return straight
-#### ned to find a better way of creating an object for each hand with their rank and suit instead of creating the list each time for any of the define
+def is_fullHouse(cards):
+    'This function returns the fullhouse hand with its trips and pair cards'
+    card_rank=[]
+    high_fullhouse=[]
+    fullhouse_dic={}
+    for card in cards:
+        card_rank.append(card.rank)
+    rank_set=list(Counter(card_rank).keys())
+    rank_repetition=list(Counter(card_rank).values())
+    "getting numerical value of each rank for comparison"
+    numeric_rank_set=[Ranks.index(r) for r in rank_set]
+    sort_rank=sorted(numeric_rank_set)
+    fullhouse=[i for i in rank_repetition if (i==2 or i==3)]
+    threekind_list=[i for i in rank_repetition if j==3]
+    "checking condition for fullhouse"
+    if (len(threekind_list)>0 & len(fullhouse)>1):
+        max_threekind=max(threekind_list)
+        "Adding highest three of a kind"
+        high_fullhouse.append(fullhouse.pop(fullhouse.index(max_threekind)))
+        "Adding the second highest card, can be three of the kind or two of the kind"
+        max_pair=max(fullhouse)
+        high_fullhouse.append(fullhouse.pop(fullhouse.index(max(fullhouse))))
+        fullhouse_dic={'Fullhouse_on':[Ranks[i] for i in high_fullhouse],'Trips_on':max_threekind,'Pairs_on':max_pair}
+    return fullhouse_dic
+    
+
+#### need to find a better way of creating an object for each hand with their rank and suit instead of creating the list each time for any of the define
 #### defined function (i.e; for any of the is_straight, is_flush, number_of_kind I am recreating the list for ranking or suit) 
 def number_of_kind(cards):
     "This function returns highes number of a kind anywhere between 2 to 4 if there is less than 2 of a kind it returns highes card"
@@ -100,10 +126,11 @@ def number_of_kind(cards):
         kicker_card.append(sort_rank[-1])
         return {'number_of_kind':4,'number_of_kind_on':rank_set[rank_repetition.index(max_repetition)],'kicker_card':kicker_card}
     elif max_repetition==3:
-        "Getting the hishes 3 of the kinds in case we have to sets of three of the kind"        
+        "No need to check for possibilities of having two three of the kinds"        
         three_kind=[numeric_rank_set[i] for i in rank_repetition if i==3]
         assert len(three_kind)>2, "Can not have more than two sets of three of a kind"
         if len(three_kind)>1:
+            assert len(three_kind)>1,"Your code is working fine, but your logic not because if you have more than one three of the kind it should be full house"
             high_three_card=max(three_kind)
         else:
             high_three_card=three_kind[0]
@@ -125,28 +152,35 @@ def number_of_kind(cards):
         if number_of_pairs==1:
             counter=0
             while len(kicker_card)<3:
-            "Going to next card if any of the three highest cards are the same as 3 of a kinds"
-            if Ranks[sort_rank[-1-counter]]==rank_set[rank_repetition.index(max_repetition)]:
-                sort_rank.pop(-1-counter)
-            kicker_card.append(sort_rank[-1-counter])
+                "Going to next card if any of the three highest cards are the same as 3 of a kinds"
+                if Ranks[sort_rank[-1-counter]]==rank_set[rank_repetition.index(max_repetition)]:
+                    sort_rank.pop(-1-counter)
+                kicker_card.append(sort_rank[-1-counter])
             return {'number_of_kind':2,'number_of_pair':1,'number_of_kind_on':Ranks[pair_rank[0]],'kicker_card':kicker_card}
         elif number_of_pairs==2:
             counter=0
             while len(kicker_card)<1:
-            "Going to next card if any of the highest cards are the same as 3 of a kinds"
-            if Ranks[sort_rank[-1-counter]]==rank_set[rank_repetition.index(max_repetition)]:
-                sort_rank.pop(-1-counter)
-            kicker_card.append(sort_rank[-1-counter])            
+                "Going to next card if any of the highest cards are the same as 3 of a kinds"
+                while Ranks[sort_rank[-1-counter]] in [Ranks[pair] for pair in pair_rank]:
+                    sort_rank.pop(-1-counter)
+                kicker_card.append(sort_rank[-1-counter])            
             return {'number_of_kind':2,'number_of_pair':2,'number_of_kind_on':[Ranks[(pair_rank[i])] for i in range(2)],'sort_order':sorted(pair_rank),'kicker_card':kicker_card}
         else:
             assert number_of_pairs<4, "Can not have more than 3 pairs"
             pair_rank=sorted(pair_rank)
             #removing lowest pair
             pair_rank.pop(0)
-
-        return {'number_of_kind':2,'number_of_pair':2,'number_of_kind_on':[Ranks[(pair_rank[i])] for i in range(2)]}
+            counter=0
+            while len(kicker_card)<1:
+                "Going to next card if any of the highest cards are the same as 3 of a kinds"
+                while Ranks[sort_rank[-1-counter]] in [Ranks[pair] for pair in pair_rank]:
+                    sort_rank.pop(-1-counter)
+                kicker_card.append(sort_rank[-1-counter])            
+            return {'number_of_kind':2,'number_of_pair':2,'number_of_kind_on':[Ranks[(pair_rank[i])] for i in range(2)],'sort_order':sorted(pair_rank),'kicker_card':kicker_card}
     else:
-        return {}
+        assert max_repetition==1, "number of repetition should be between 1 and 4"
+        kicker_card=sort_rank[-2::-1]
+        return {'number of _kind':1,'highest_card_on':Ranks[sort_rank[-1]],'kicker_card':kicker_card}
             
 
     if len(cards)<5: 
