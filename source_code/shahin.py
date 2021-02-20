@@ -8,7 +8,8 @@ Ranks = [str(n) for n in range(2, 11)] + list('JQKA')
 RankMap = {rank:i+1 for i, rank in enumerate([str(n) for n in range(2, 11)] + list('JQKA'))} # function of rank mapped to number, greater the number the more valuable the card 2 => 1, K => 12, A => 13
 
 def is_flush(cards):
-    "This function check each players hand for flush and returns dictionary of flush and the suit"
+    """This function check each players hand for flush and returns dictionary 
+    of flush, highest card on flush and the suit"""
     if len(cards)<5: 
         raise Exception("Need at least 5 cards to check for flush")
         return 0
@@ -25,14 +26,15 @@ def is_flush(cards):
         for card in cards:
             if card.suit==flush_suit:
                 flush_cards.append(card)
-                #Find highes flush
+                #Find highest flush
                 flush_rank.append(Ranks.index(card.rank))
         return {'flush':{'suit':flush_suit,'flush_cards':flush_cards,'High_flush_on':Ranks[max(flush_rank)]}}
 
 
 def is_straight(cards):
-    #"This function check for straight and straight flush"
-    #"It returns highes straight flush if it exist, in case there is no straight flush, it will return highest straight if it exists"
+    """This function check for straight and straight flush
+    It returns highes straight flush if it exist, in case
+    there is no straight flush, it will return highest straight if it exists"""
     straight_flush=False
     straight={}
     card_rank=[]
@@ -70,7 +72,7 @@ def is_straight(cards):
                 straight_flush=True
                 straight={'straigh_flush':{'suit':is_flush(straight_cards)['flush']['suit'],'High_straight_on':Ranks[sort_rank[card_index+4]]}}
             else: 
-                if straight_flush==False:# Dont count straight if you had straight flush
+                if straight_flush==False:# Dont count straight if you have straight flush
                     straight={'High_straight_on':Ranks[sort_rank[card_index+4]]}
         card_index+=1
     return straight
@@ -83,11 +85,35 @@ def number_of_kind(cards):
         card_rank.append(card.rank)
     rank_set=list(Counter(card_rank).keys())
     rank_repetition=list(Counter(card_rank).values())
+    "getting numerical value of each rank for comparison"
+    numeric_rank_set=[Ranks.index(r) for r in rank_set]
     max_repetition=max(rank_repetition)
+    sort_rank=sorted(numeric_rank_set)
+    kicker_card=list()
     if max_repetition==4:
-        return {'number_of_kind':4,'number_of_kind_on':rank_set[rank_repetition.index(max_repetition)]}
+        """Returns 4 of a kind and use remaining 1 card for kicker-card in case they have the same 
+        4 of the kind"""
+        
+        "Find next highest card in case highest card is the same as 4 of a kind"
+        if Ranks[sort_rank[-1]]==rank_set[rank_repetition.index(max_repetition)]:
+            sort_rank.pop(-1)
+        kicker_card.append(sort_rank[-1])
+        return {'number_of_kind':4,'number_of_kind_on':rank_set[rank_repetition.index(max_repetition)],'kicker_card':kicker_card}
     elif max_repetition==3:
-        return {'number_of_kind':4,'number_of_kind_on':rank_set[rank_repetition.index(max_repetition)]}
+        "Getting the hishes 3 of the kinds in case we have to sets of three of the kind"        
+        three_kind=[numeric_rank_set[i] for i in rank_repetition if i==3]
+        assert len(three_kind)>2, "Can not have more than two sets of three of a kind"
+        if len(three_kind)>1:
+            high_three_card=max(three_kind)
+        else:
+            high_three_card=three_kind[0]
+        counter=0
+        while len(kicker_card)<2:
+            "Going to next card if any of the two highest cards are the same as 3 of a kinds"
+            if Ranks[sort_rank[-1-counter]]==high_three_card:
+                sort_rank.pop(-1-counter)
+            kicker_card.append(sort_rank[-1-counter])
+        return {'number_of_kind':3,'number_of_kind_on':Ranks[high_three_card],'kicker_card':kicker_card}
     elif max_repetition==2:
         #need to check how many pairs we have and then select the highest two pairs if there are more than one.
         pair_rank=[]
@@ -97,14 +123,27 @@ def number_of_kind(cards):
                 pair_rank.append(pair_rank_index)
         number_of_pairs=len(pair_rank)
         if number_of_pairs==1:
-            return {'number_of_kind':2,'number_of_pair':1,'number_of_kind_on':Ranks[pair_rank[0]]}
+            counter=0
+            while len(kicker_card)<3:
+            "Going to next card if any of the three highest cards are the same as 3 of a kinds"
+            if Ranks[sort_rank[-1-counter]]==rank_set[rank_repetition.index(max_repetition)]:
+                sort_rank.pop(-1-counter)
+            kicker_card.append(sort_rank[-1-counter])
+            return {'number_of_kind':2,'number_of_pair':1,'number_of_kind_on':Ranks[pair_rank[0]],'kicker_card':kicker_card}
         elif number_of_pairs==2:
-            return {'number_of_kind':2,'number_of_pair':2,'number_of_kind_on':[Ranks[(pair_rank[i])] for i in range(2)]}
+            counter=0
+            while len(kicker_card)<1:
+            "Going to next card if any of the highest cards are the same as 3 of a kinds"
+            if Ranks[sort_rank[-1-counter]]==rank_set[rank_repetition.index(max_repetition)]:
+                sort_rank.pop(-1-counter)
+            kicker_card.append(sort_rank[-1-counter])            
+            return {'number_of_kind':2,'number_of_pair':2,'number_of_kind_on':[Ranks[(pair_rank[i])] for i in range(2)],'sort_order':sorted(pair_rank),'kicker_card':kicker_card}
         else:
-            assert number_of_pairs==3, "number of pairs must be 3"
+            assert number_of_pairs<4, "Can not have more than 3 pairs"
             pair_rank=sorted(pair_rank)
             #removing lowest pair
             pair_rank.pop(0)
+
         return {'number_of_kind':2,'number_of_pair':2,'number_of_kind_on':[Ranks[(pair_rank[i])] for i in range(2)]}
     else:
         return {}
@@ -117,6 +156,7 @@ def number_of_kind(cards):
     return 0
 ## need to add a function to pick the highest card
 ## need to add a logic if I have full house on a hand it ignores three of the kind
+"returning hands scoure in terms of dictionary with their values being a list to make it easier to compare hand at the end"
 def score_hand(cards):
     print("scoring: {}".format(cards))
     if (len(cards) != 7):
