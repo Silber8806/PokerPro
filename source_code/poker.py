@@ -458,7 +458,7 @@ class SmartPlayer(GenericPlayer):
             return <number> -> your total bet for this turn.  Most be equal or greater than current_bid + call_bid.
             return None -> you folded this hand and lose all your money.
         """
-        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=1000)
+        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=5)
         expected_profit = round(win_probabilty * pot - (1 - win_probabilty) * current_bid,2)
 
         forced_raise = random.randint(0,10)
