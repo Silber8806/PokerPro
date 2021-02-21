@@ -834,7 +834,14 @@ player_types = [cls.__name__ for cls in GenericPlayer.__subclasses__()] # lists 
 if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
 
-    player_types = [AlwaysCallPlayer,AlwaysCallPlayer,AlwaysCallPlayer,SmartPlayer,SmartPlayer,SmartPlayer]
+    player_types = [
+        AlwaysCallPlayer, # defines strategy of player 1
+        AlwaysCallPlayer, # defines strategy of player 2
+        AlwaysCallPlayer, # defines strategy of player 3
+        AlwaysCallPlayer, # defines strategy of player 4
+        AlwaysCallPlayer, # defines strategy of player 5
+        SmartPlayer # defines strategy of player 6
+    ]
 
     for _ in range(1):
         casino = Table(player_types=player_types,beginning_balance=100000,minimum_play_balance=50,hands=100) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
