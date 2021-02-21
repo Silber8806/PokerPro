@@ -13,6 +13,8 @@ import time
 # so if you have a card instance: card.suit and card.rank
 # should return the suit and rank respectively.
 Card = collections.namedtuple('Card', ['rank', 'suit'])
+
+# maps card ranks to integers
 RankMap = {rank:i+1 for i, rank in enumerate([str(n) for n in range(2, 11)] + list('JQKA'))}
 
 # the stupidest way of preserving an index, your welcome 
@@ -23,23 +25,29 @@ global debug
 unique_table_id = 0
 unique_game_id = 0
 
+# set debug to one, to see these messages in __main__
 def dprint(message):
     if debug == 1:
         print(message)
     return None
 
+# function for converting a card to characters used mostly in Table.run_analysis
 def card_to_char(card):
     if card:
         return card.rank + card.suit[0]
     else:
         return '00'
 
+# fucntion for converting card to string... simlar to the above.
 def card_to_string(card):
     if card:
         return card.rank + '-' + card.suit
     else:
         return 'Z-N/A'
 
+# used to take a list and chunk it into a list of n-tuples
+# found this on stackoverflow for chunking lists and used
+# directly for that puporse.
 def chunk(lst, n):
     """ 
         This just chunks a list into pieces, found on stackoverflow
@@ -317,6 +325,11 @@ class GenericPlayer(object):
         self.won_game = 0
 
     def register_for_game(self,game_id):
+        """
+            Register a player for a game, making sure that a lot of attributes
+            that keep track of state are reinitialized.  A lot of these attributes
+            are used for reporting purposes later on.
+        """
         self.games_played.append(game_id)
         self.current_game = game_id
         self.bid_number = 0
@@ -328,10 +341,19 @@ class GenericPlayer(object):
         return None 
 
     def set_blind(self,blind_type=None):
+        """
+            use this to make a person a small or large blind,
+            used for reporting purposes.
+        """
         self.blind_type = blind_type
         return None
 
     def update_balance_history(self):
+        """
+            update an entry for a game played to be exported later, this represents 
+            a row in a data frame later on in jupyter analysis.  See Table.run_analysis
+            for how that is handled.
+        """
         if self.won_game == 1:
             end_game_result = 'won'
         else:
@@ -346,6 +368,7 @@ class GenericPlayer(object):
         else:
             player_status = 'lost_game'
 
+        # this represents a row in the data analysis for this specific player.
         self.balance_history.append([self.current_game, end_game_result, player_status, self.blind_type, self.beginning_balance, self.registered_balance, self.balance, self.balance - self.registered_balance])
         return None
 
@@ -370,6 +393,10 @@ class GenericPlayer(object):
             self.balance = self.balance - pay_bid
 
     def _set_up_bet(self,opponents,call_bid,current_bid,raise_allowed=False):
+        """
+            sets up some basic context for a betting round.  Used by make_bet
+            to attach certain betting conditions to the player.
+        """
         self.opponents = opponents
         self.call = call_bid
         self.current_bet = current_bid
@@ -377,6 +404,12 @@ class GenericPlayer(object):
         return None
 
     def _last_man_standing(self):
+        """
+            in any bid, if you are the last player still playing, you can 
+            win by just calling or checking the bid.  This prevents 
+            players from folding if they would have won as the last
+            non-folded player on the table.
+        """
         if self.opponents == 0:
             dprint("{} - is last man standing".format(self.name))
             self.call_bet()
@@ -385,6 +418,9 @@ class GenericPlayer(object):
         return 0
 
     def _raise_bet(self,raise_amount,allow_all_in=True):
+        """
+            private method for making a raise.
+        """
         dprint("{} - raises {}".format(self.name,raise_amount))
         if self.call + raise_amount > self.balance and allow_all_in == True:
             bet_amount = self.balance
@@ -402,6 +438,14 @@ class GenericPlayer(object):
             return None
 
     def call_bet(self,allow_all_in=True):
+        """
+            Use this method in a subclassed version of GenericPlayer in the 
+            as a bet_stregty to orchestrate a call.  final_bet used here
+            is supposed to be hidden in that method, but does the accounting
+            for the player.  Note, if you allow_all_in=True, if your required
+            bid is higher than your balance you will go all in.  Set this 
+            to false to fold if the bid is higher than your balance.
+        """
         dprint("{} - calls/checks".format(self.name))
         if self.call > self.balance and allow_all_in == True:
             bet_amount = self.balance
@@ -440,6 +484,10 @@ class GenericPlayer(object):
         return None
 
     def record_bet(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        """ 
+            This method is used in make_bet to record the hand and a lot of the statistics
+            associated with it.  See table.run_analysis and the poker_hands.csv to see it.
+        """
         # currently not implemented...use this one to record bets...
         self.bid_number += 1
         river_set = [None for _ in range(5)]
@@ -453,6 +501,15 @@ class GenericPlayer(object):
         return None
 
     def make_bet(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        """
+            This is a method that checks if the player is the last man standing.  If he 
+            is, automatically wins the round.  If he is not, it calls self.bet_strategy, 
+            which is not part of GenericPlayer, but is instead used by subclasses of the
+            player to implement custom strategies.  record_bet made after bet_strategy
+            records the hand.  Don't manipulate this, instead inherit from this class
+            and make your own strategy using a bet_strategy method.  Think of this 
+            more like a dispatcher that links a players betting decisions to a game.
+        """
         self._set_up_bet(opponents,call_bid,current_bid,raise_allowed)
         if (self._last_man_standing()):
             dprint("is last man")
@@ -686,18 +743,22 @@ class Table():
     """
     def __init__(self,scenario_name,player_types,beginning_balance,minimum_play_balance,hands):
         global unique_table_id
-        unique_table_id += 1
-        self.scenario_name = scenario_name
-        self.player_types = player_types 
-        self.player_types_names = '|'.join(sorted([player_type.__name__ for player_type in self.player_types]))
-        self.players = None
-        self.balance = beginning_balance
-        self.min_balance = minimum_play_balance
-        self.hands = hands
-        self.games_played = []
-        self.id = str(int(unique_table_id))
+        unique_table_id += 1 # global id for this table
+        self.scenario_name = scenario_name # what scanario it is being played under, see simulation variable
+        self.player_types = player_types # player types for this game, list of class names, which are instantiatd later
+        self.player_types_names = '|'.join(sorted([player_type.__name__ for player_type in self.player_types])) # names of the subclasses representing player strategy
+        self.players = None # actual player instances (not classes)
+        self.balance = beginning_balance # beginning balance for this table
+        self.min_balance = minimum_play_balance # minimum balance to join
+        self.hands = hands # number of hands for this table
+        self.games_played = [] # record of all games played, game id
+        self.id = str(int(unique_table_id)) # unique table id for this specific table
 
     def add_games_played(self,game_id):
+        """
+            use this method to add a game to the games_played array.  Each game_id
+            represents the unique id of a game
+        """
         self.games_played.append(game_id)
         return None
 
@@ -710,17 +771,20 @@ class Table():
             raise Exception("Error: no more than 6 players allowed")
 
         players = []
-        for i, player_type in enumerate(self.player_types):
+        for i, player_type in enumerate(self.player_types): # player types represent GenericPlayer subtype, which gets instantiated here.
             balance = self.balance 
             name = "players_" + str(i + 1)
-            new_player = player_type(name,balance)
+            new_player = player_type(name,balance) # creates a player instance, player_type is the name of a class.  Note using Class as a 1st class citizen.
             players.append(new_player)
 
-        self.players = players
+        self.players = players # all the players now instantiated
         
         return players
 
     def progress_player_turn_order(self):
+        """ 
+            change the player order.  each time a new game begins, you move the start position forward 1 position.
+        """
         self.players = self.players[-1:] + self.players[:-1]
         return None
 
@@ -731,15 +795,15 @@ class Table():
         
         start_time = time.time()
         dprint('started poker game')
-        deck = FrenchDeck()
+        deck = FrenchDeck() # French deck of cards used to play the game, you can think of this as the dealer.
 
         self.initialize_players() # create your players
         
         for _, hand in enumerate(deck.permute(len(self.player_types) * 2 + 5,self.hands)): # start streaming 5 cards + 2 per person.  Permute means it reshuffles each time.
-            game = Game(hand,self.players,self.min_balance) # Start a new game instance with settings
-            self.add_games_played(game.id)
+            game = Game(hand,self.players,self.min_balance) # Start a new game instance with settings, this represents the actual poker game
+            self.add_games_played(game.id) # remember to record that this game happened at this table for later analysis
             game.run_game() # start the actual simulation
-            self.progress_player_turn_order()
+            self.progress_player_turn_order() # move the turn order for players
 
         elapsed_time = time.time() - start_time
         dprint("ending poker game: {} games in {} seconds".format(self.hands,round(elapsed_time,2)))
@@ -823,16 +887,19 @@ class Table():
 # SmartPlayer:
 # raises 10% of the time, else does a monte carlo simulation of hand and calls only if they will most likely win money.
 
+# Player that always calls
 class AlwaysCallPlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         self.call_bet()
         return None
 
+# Player that always raises
 class AlwaysRaisePlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         self.raise_bet(20)
         return None
 
+# sophisticated player with more complicated strategy.
 class SmartPlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         """
@@ -866,6 +933,9 @@ class SmartPlayer(GenericPlayer):
         return None
 
 def validate_config(config):
+    """
+        Checks the config for errors, quiet extensive.
+    """
     print("validating the simulation settings...")
 
     required_keys = set(['tables','hands','balance','minimum_balance','simulations'])
@@ -921,29 +991,33 @@ def validate_config(config):
     return None
 
 def run_all_simulations(config):
-    validate_config(config)
-    tables = config['tables']
-    hands =config['hands']
-    player_balance = config['balance']
-    minimum_to_play = config['minimum_balance']
-    simulations = config['simulations']
+    """ 
+        reads the configuration file config representing simulations to run
+        and starts the simulations in serial fashion.
+    """
+    validate_config(config) # validate the configuration to prevent runtime errors
+    tables = config['tables'] # get number of tables to run
+    hands =config['hands'] # get number of hands to deal per table
+    player_balance = config['balance'] # players beginning balance
+    minimum_to_play = config['minimum_balance'] # minimum balance to join next game for a given player
+    simulations = config['simulations'] # all the simulations that we will run, this represents a list
 
     print("beginning all simulation...")
-    for simulation in simulations:
+    for simulation in simulations: # run simluation one at a time in serial fashion
         print("")
         print("simulation running: {}".format(simulation['simulation_name']))
         start_time = time.time()
         for table in range(tables):
             dprint("simulating table: {}".format(table+1))
-            casino = Table(
-                            scenario_name=simulation['simulation_name'],
-                            player_types=simulation['player_types'],
-                            beginning_balance=player_balance,
-                            minimum_play_balance=minimum_to_play,
-                            hands=hands
+            casino = Table( # generates a new table
+                            scenario_name=simulation['simulation_name'], # use this to look up scenario in data analysis
+                            player_types=simulation['player_types'], # player types defined by subclassed version of GenericPlayer class
+                            beginning_balance=player_balance, # beginning balances of player
+                            minimum_play_balance=minimum_to_play, # minimum balance to play
+                            hands=hands # number of hands to be played in this table
                         )
             casino.run_simulation() # start the actual simulation
-            casino.run_analysis() # only remove comment if you want to generate files for the game
+            casino.run_analysis() # export the data for jupyter analysis at some later date
         end_time = time.time()
         elapsed_time = round(end_time - start_time,2)
         print("simulation finished: {} - time_required: {} seconds".format(simulation['simulation_name'],elapsed_time))
@@ -957,6 +1031,7 @@ debug=0 # to see detailed messages of simulation, put this to 1, think verbose m
 if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
 
+    # defines all the simulations we will run
     simulations = {
        'tables': 10, # number of poker tables simulated
        'hands': 10, # number of hands the dealer will player, has to be greater than 2
@@ -988,6 +1063,6 @@ if __name__ == '__main__':
         ]
     }
 
-    random.seed(42)
+    random.seed(42) # gurantees standardized output for any given config
 
-    run_all_simulations(simulations)
+    run_all_simulations(simulations) # runs all the simulations in simulation variable
