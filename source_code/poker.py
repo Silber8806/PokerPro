@@ -685,9 +685,10 @@ class Table():
         and than streams a set of cards, which it uses per game.  This needs to be 
         flehsed out a bit.
     """
-    def __init__(self,player_types,beginning_balance,minimum_play_balance,hands):
+    def __init__(self,scenario_name,player_types,beginning_balance,minimum_play_balance,hands):
         global unique_table_id
         unique_table_id += 1
+        self.scenario_name = scenario_name
         self.player_types = player_types 
         self.player_types_names = '|'.join(sorted([player_type.__name__ for player_type in self.player_types]))
         self.players = None
@@ -791,12 +792,12 @@ class Table():
         file_name = 'poker_table_info_' + self.id + '.csv'
         file_loc = os.path.join(data_dir,file_name)
 
-        fieldnames = ["table_id","player_types"]
+        fieldnames = ["table_id","scenario_name","player_types"]
 
         with open(file_loc,'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(fieldnames) 
-            data_tuple=[str(self.id),self.player_types_names]
+            data_tuple=[str(self.id),self.scenario_name,self.player_types_names]
             writer.writerows([data_tuple])
         return 0
 
@@ -847,7 +848,7 @@ player_type_allowed_classes = [cls.__name__ for cls in GenericPlayer.__subclasse
 
 def validate_player_types(player_types_list):
     for player_type in player_types_list:
-        if player_type not in player_types:
+        if player_type.__name__  not in player_type_allowed_classes:
             raise Exception("Bad Player Type, should be in: {}".format(player_type_allowed_classes))
     return 0
 
@@ -855,32 +856,36 @@ if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
 
     all_simulations = [
-        [ # game 1
-            AlwaysCallPlayer, # defines strategy of player 1
-            AlwaysCallPlayer, # defines strategy of player 2
-            AlwaysCallPlayer, # defines strategy of player 3
-            AlwaysCallPlayer, # defines strategy of player 4
-            AlwaysCallPlayer, # defines strategy of player 5
-            SmartPlayer # defines strategy of player 6
-        ],
-        [ # game 2
-            AlwaysRaisePlayer, # defines strategy of player 1
-            AlwaysRaisePlayer, # defines strategy of player 2
-            AlwaysRaisePlayer, # defines strategy of player 3
-            AlwaysRaisePlayer, # defines strategy of player 4
-            AlwaysRaisePlayer, # defines strategy of player 5
-            SmartPlayer # defines strategy of player 6
-        ]      
+            {
+                'simulation_name': 'all_call_against_smart_player',
+                'player_types': [ 
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    AlwaysCallPlayer, # defines strategy of player 4
+                    AlwaysCallPlayer, # defines strategy of player 5
+                    SmartPlayer # defines strategy of player 6
+                ]
+            },
+            {
+                'simulation_name': 'all_raise_against_smart_player',
+                'player_types': [ 
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    AlwaysCallPlayer, # defines strategy of player 4
+                    AlwaysCallPlayer, # defines strategy of player 5
+                    SmartPlayer # defines strategy of player 6
+                ]
+            }    
     ]
 
-    for player_types in all_simulations:
-        validate_player_types(player_types)
+    for simulation in all_simulations:
+        validate_player_types(simulation['player_types'])
 
-    for player_types in all_simulations:
-        for _ in range(1):
-            casino = Table(player_types=player_types,beginning_balance=100000,minimum_play_balance=50,hands=100) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
+    for simulation in all_simulations:
+        for _ in range(10):
+            casino = Table(scenario_name=simulation['simulation_name'],player_types=simulation['player_types'],beginning_balance=100000,minimum_play_balance=50,hands=100) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
             casino.run_simulation() # start the actual simulation
             casino.run_analysis() # only remove comment if you want to generate files for the game
-            break
-        break
     print("finished poker simulation...")
