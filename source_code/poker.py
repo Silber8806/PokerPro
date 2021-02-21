@@ -888,4 +888,6 @@ if __name__ == '__main__':
             casino = Table(scenario_name=simulation['simulation_name'],player_types=simulation['player_types'],beginning_balance=100000,minimum_play_balance=50,hands=100) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
             casino.run_simulation() # start the actual simulation
             casino.run_analysis() # only remove comment if you want to generate files for the game
+            break
+        break
     print("finished poker simulation...")
