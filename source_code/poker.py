@@ -958,8 +958,8 @@ if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
 
     simulations = {
-       'tables': 25,
-       'hands': 100,
+       'tables': 10,
+       'hands': 10,
        'balance': 100000,
        'minimum_balance': 50,
        'simulations': [
