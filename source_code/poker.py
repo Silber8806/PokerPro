@@ -18,11 +18,10 @@ RankMap = {rank:i+1 for i, rank in enumerate([str(n) for n in range(2, 11)] + li
 # the stupidest way of preserving an index, your welcome 
 global unique_table_id
 global unique_game_id
+global debug
 
 unique_table_id = 0
 unique_game_id = 0
-
-debug=0
 
 def dprint(message):
     if debug == 1:
@@ -469,48 +468,6 @@ class GenericPlayer(object):
     def __str__(self):
         return "{} [balance: ${}]".format(self.name,self.balance)
 
-class AlwaysCallPlayer(GenericPlayer):
-    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
-        self.call_bet()
-        return None
-
-class AlwaysRaisePlayer(GenericPlayer):
-    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
-        self.raise_bet(20)
-        return None
-
-class SmartPlayer(GenericPlayer):
-    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
-        """
-            This is the only strategy for playing cards that I've implemented.  It's not done
-            yet.  The gist of it is as follows:
-
-            1. you calculate your win probability using the simulate_win_odds (still needs to score hands to work)
-            2. you calculate the expected profit: chance of win * current pot - chance of losing * current bid (should be full bid price)
-            3. if you have no opponents, you win, so you call/check and collect your money.
-            4. you decide to raise the pot 10% of the time for $10
-            5. if you will make a profit, you at minimum check/call.
-            6. if you lose money on average, than just fold and get out of the game.
-
-            The return has the following meaning:
-            return <number> -> your total bet for this turn.  Most be equal or greater than current_bid + call_bid.
-            return None -> you folded this hand and lose all your money.
-        """
-        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=5)
-        expected_profit = round(win_probabilty * pot - (1 - win_probabilty) * current_bid,2)
-
-        forced_raise = random.randint(0,10)
-        if forced_raise < 6:
-            self.raise_bet(10)
-            return None
-
-        # if you statistically will make money, call the bid else just fold
-        if expected_profit > 0:
-            self.call_bet()
-        else:
-            self.fold_bet()
-        return None
-
 class Game():
     """
         Game implements an actual poker game.  It has all the mechanics to do
@@ -727,10 +684,12 @@ class Table():
         and than streams a set of cards, which it uses per game.  This needs to be 
         flehsed out a bit.
     """
-    def __init__(self,players,beginning_balance,minimum_play_balance,hands):
+    def __init__(self,scenario_name,player_types,beginning_balance,minimum_play_balance,hands):
         global unique_table_id
         unique_table_id += 1
-        self.player_num = players 
+        self.scenario_name = scenario_name
+        self.player_types = player_types 
+        self.player_types_names = '|'.join(sorted([player_type.__name__ for player_type in self.player_types]))
         self.players = None
         self.balance = beginning_balance
         self.min_balance = minimum_play_balance
@@ -744,20 +703,18 @@ class Table():
 
     def initialize_players(self):
         """ create new players with certain balance of dollars to play with"""
-        if self.player_num < 2:
+        if len(self.player_types) < 2:
             raise Exception("Error: too few players")
 
-        players = []
-        for player in range(self.player_num - 1):
-            balance = self.balance 
-            name = "players_" + str(player + 1)
-            new_player = AlwaysCallPlayer(name,balance)
-            players.append(new_player)
+        if len(self.player_types) > 6:
+            raise Exception("Error: no more than 6 players allowed")
 
-        name = "players_{}".format(self.player_num)
-        balance = self.balance 
-        new_player = SmartPlayer(name,balance)
-        players.append(new_player)
+        players = []
+        for i, player_type in enumerate(self.player_types):
+            balance = self.balance 
+            name = "players_" + str(i + 1)
+            new_player = player_type(name,balance)
+            players.append(new_player)
 
         self.players = players
         
@@ -778,7 +735,7 @@ class Table():
 
         self.initialize_players() # create your players
         
-        for _, hand in enumerate(deck.permute(self.player_num * 2 + 5,self.hands)): # start streaming 5 cards + 2 per person.  Permute means it reshuffles each time.
+        for _, hand in enumerate(deck.permute(len(self.player_types) * 2 + 5,self.hands)): # start streaming 5 cards + 2 per person.  Permute means it reshuffles each time.
             game = Game(hand,self.players,self.min_balance) # Start a new game instance with settings
             self.add_games_played(game.id)
             game.run_game() # start the actual simulation
@@ -803,7 +760,7 @@ class Table():
         file_name = 'poker_balances_' + self.id + '.csv'
         file_loc = os.path.join(data_dir,file_name)
 
-        fieldnames = ['game_id','player_name','player_type','game_result', 
+        fieldnames = ['table_id','game_id','player_name','player_type','game_result', 
                                     'game_reason', 'blind_type', 'beginning_balance',
                                     'game_start_balance','game_end_balance','game_net_change']
         
@@ -812,13 +769,13 @@ class Table():
             writer.writerow(fieldnames)
             for i,player in enumerate(self.players):
                 for history in player.balance_history:
-                    data_tuple = [history[0]] + [player.name] + [player.__class__.__name__] + history[1:]
+                    data_tuple = [str(self.id)] + [history[0]] + [player.name] + [player.__class__.__name__] + history[1:]
                     writer.writerows([data_tuple])
 
         file_name = 'poker_hands_' + self.id + '.csv'
         file_loc = os.path.join(data_dir,file_name)
 
-        fieldnames = ["game_id","player_name","player_type","bet_number",
+        fieldnames = ["table_id","game_id","player_name","player_type","bet_number",
                                 "opponents","call","current","final","pot","allowed",
                                 "hand1","hand2","community1","community2","community3",
                                 "community4","community5"]
@@ -827,17 +784,208 @@ class Table():
             writer = csv.writer(csvfile)
             writer.writerow(fieldnames) 
             for player in self.players:
-                writer.writerows(player.hand_history)
+                for history in player.hand_history:
+                    data_tuple = [str(self.id)] + history
+                    writer.writerows([data_tuple])
+
+        file_name = 'poker_table_info_' + self.id + '.csv'
+        file_loc = os.path.join(data_dir,file_name)
+
+        fieldnames = ["table_id","scenario_name","player_types"]
+
+        with open(file_loc,'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(fieldnames) 
+            data_tuple=[str(self.id),self.scenario_name,self.player_types_names]
+            writer.writerows([data_tuple])
         return 0
 
-global player_types 
-player_types = [cls.__name__ for cls in GenericPlayer.__subclasses__()] # lists all possible Player Stragegies
+# Write your own classes here to implement a new player strategy
+# first you inherit from GenericPlayer, which implements under the cover the mechanisms for joining a game
+# use self.call_bet() to make a call or check
+# use self.raise_bet(number) to increase your bet by number
+# use self.fold to fold.
+# automatically does the accounting under the cover.
+# feel free to use these variables in making decisions...explained below:
+# hand -> 2-card hand the player holds, see Card named-tuple
+# river -> 3-4-5 card hand the player holds, see Card named-tuple for details
+# opponents -> how many opponents are left
+# call_bid -> current amount required to make a call
+# current_bid -> current amount already put into pot
+# pot -> current pot, basically how much you can earn if you win
+# raise_allowed -> influences raise behavior, last round of betting raises aren't allowed so rasies become calls
+
+# The below are some sample classes:
+# AlwaysCallPlayer:
+# Player will always call no matter what
+# AlwaysRaisePlayer:
+# player will always raise no matter what
+# SmartPlayer:
+# raises 10% of the time, else does a monte carlo simulation of hand and calls only if they will most likely win money.
+
+class AlwaysCallPlayer(GenericPlayer):
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        self.call_bet()
+        return None
+
+class AlwaysRaisePlayer(GenericPlayer):
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        self.raise_bet(20)
+        return None
+
+class SmartPlayer(GenericPlayer):
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        """
+            This is the only strategy for playing cards that I've implemented.  It's not done
+            yet.  The gist of it is as follows:
+
+            1. you calculate your win probability using the simulate_win_odds (still needs to score hands to work)
+            2. you calculate the expected profit: chance of win * current pot - chance of losing * current bid (should be full bid price)
+            3. if you have no opponents, you win, so you call/check and collect your money.
+            4. you decide to raise the pot 10% of the time for $10
+            5. if you will make a profit, you at minimum check/call.
+            6. if you lose money on average, than just fold and get out of the game.
+
+            The return has the following meaning:
+            return <number> -> your total bet for this turn.  Most be equal or greater than current_bid + call_bid.
+            return None -> you folded this hand and lose all your money.
+        """
+        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=5)
+        expected_profit = round(win_probabilty * pot - (1 - win_probabilty) * current_bid,2)
+
+        forced_raise = random.randint(0,10)
+        if forced_raise < 6:
+            self.raise_bet(10)
+            return None
+
+        # if you statistically will make money, call the bid else just fold
+        if expected_profit > 0:
+            self.call_bet()
+        else:
+            self.fold_bet()
+        return None
+
+def validate_config(config):
+    print("validating the simulation settings...")
+
+    required_keys = set(['tables','hands','balance','minimum_balance','simulations'])
+    config_options = set(config.keys())
+
+    if not required_keys.issubset(config_options):
+        for option in config_options:
+            if option not in required_keys:
+                print("missing: {}".format(option))
+        raise Exception("Config Error: Missing Keys in Simulation Config")
+
+    bad_integer_error=0
+    for numeric_option in ['tables','hands','balance','minimum_balance']:
+        if not isinstance(config[numeric_option],int):
+            bad_integer_error=1
+            print("Config Error: {} should be an integer".format(numeric_option))
+            continue
+
+        if int(config[numeric_option]) < 1:
+            bad_integer_error=1
+            print("Config Error: {} should be an integer greater than 0".format(numeric_option))
+
+    if bad_integer_error == 1:
+        raise Exception("Config_Error: bad type found!")
+
+    if config['hands'] < 2:
+        raise Exception("Config Error: hands needs to be at minimum 2")
+
+    if config['balance'] < config['minimum_balance']:
+        raise Exception("Config Error: {} player beginning balance has to be greater than {}".format(config['balance'],config['minimum_balance']))
+    
+    if not isinstance(config['simulations'],list):
+        raise Exception("Config Error: simulations should be a list of simulations")
+
+    if len(config['simulations']) < 1:
+        raise Exception("Config Error: you need at least 1 simulation under simulations key")
+
+    for simulation in config['simulations']:
+        if 'simulation_name' not in simulation:
+            raise Exception("Config Error: simulation is missing simulation_name key")
+        if 'player_types' not in simulation:
+            raise Exception("Config Error: simulation is missing player_types array")
+        if not isinstance(simulation['player_types'],list):
+            raise Exception("Config Error: simulation player_types key needs to be a list")
+        player_type_allowed_classes = [cls.__name__ for cls in GenericPlayer.__subclasses__()]
+        if len(simulation['player_types']) < 2 or len(simulation['player_types']) > 6:
+            raise ExceptioN("Config Error: simulation has less than 2 or more than 6 players") 
+        for player_type in simulation['player_types']:
+            if player_type.__name__ not in player_type_allowed_classes:
+                raise Exception("Config issue: {} not in {} allowed player_types".format(player_type.__name__, player_type_allowed_classes))
+
+    print('finished the validation settings...')
+    return None
+
+def run_all_simulations(config):
+    validate_config(config)
+    tables = config['tables']
+    hands =config['hands']
+    player_balance = config['balance']
+    minimum_to_play = config['minimum_balance']
+    simulations = config['simulations']
+
+    print("beginning all simulation...")
+    for simulation in simulations:
+        print("")
+        print("simulation running: {}".format(simulation['simulation_name']))
+        start_time = time.time()
+        for table in range(tables):
+            dprint("simulating table: {}".format(table+1))
+            casino = Table(
+                            scenario_name=simulation['simulation_name'],
+                            player_types=simulation['player_types'],
+                            beginning_balance=player_balance,
+                            minimum_play_balance=minimum_to_play,
+                            hands=hands
+                        )
+            casino.run_simulation() # start the actual simulation
+            casino.run_analysis() # only remove comment if you want to generate files for the game
+        end_time = time.time()
+        elapsed_time = round(end_time - start_time,2)
+        print("simulation finished: {} - time_required: {} seconds".format(simulation['simulation_name'],elapsed_time))
+        dprint("")
+    print("")
+    print('finished all simulation')
+    return None
+
+debug=0 # to see detailed messages of simulation, put this to 1, think verbose mode
 
 if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
-    for _ in range(25):
-        casino = Table(players=6,beginning_balance=100000,minimum_play_balance=50,hands=1000) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
-        casino.run_simulation() # start the actual simulation
-        casino.run_analysis() # only remove comment if you want to generate files for the game
-        break
-    print("finished poker simulation...")
+
+    simulations = {
+       'tables': 10, # number of poker tables simulated
+       'hands': 10, # number of hands the dealer will player, has to be greater than 2
+       'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
+       'minimum_balance': 50, # minimum balance to join a table
+       'simulations': [ # each dict in the list is a simulation to run
+            {
+                'simulation_name': 'all_call_against_smart_player', # name of simulation - reference for data analytics
+                'player_types': [  # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    AlwaysCallPlayer, # defines strategy of player 4
+                    AlwaysCallPlayer, # defines strategy of player 5
+                    SmartPlayer # defines strategy of player 6
+                ]
+            },
+            {
+                'simulation_name': 'all_raise_against_smart_player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    AlwaysCallPlayer, # defines strategy of player 4
+                    AlwaysCallPlayer, # defines strategy of player 5
+                    SmartPlayer # defines strategy of player 6
+                ]
+            }    
+        ]
+    }
+
+    run_all_simulations(simulations)
