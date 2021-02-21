@@ -689,6 +689,7 @@ class Table():
         global unique_table_id
         unique_table_id += 1
         self.player_types = player_types 
+        self.player_types_names = '|'.join(sorted([player_type.__name__ for player_type in self.player_types]))
         self.players = None
         self.balance = beginning_balance
         self.min_balance = minimum_play_balance
@@ -759,7 +760,7 @@ class Table():
         file_name = 'poker_balances_' + self.id + '.csv'
         file_loc = os.path.join(data_dir,file_name)
 
-        fieldnames = ['game_id','player_name','player_type','game_result', 
+        fieldnames = ['table_id','game_id','player_name','player_type','game_result', 
                                     'game_reason', 'blind_type', 'beginning_balance',
                                     'game_start_balance','game_end_balance','game_net_change']
         
@@ -768,13 +769,13 @@ class Table():
             writer.writerow(fieldnames)
             for i,player in enumerate(self.players):
                 for history in player.balance_history:
-                    data_tuple = [history[0]] + [player.name] + [player.__class__.__name__] + history[1:]
+                    data_tuple = [str(self.id)] + [history[0]] + [player.name] + [player.__class__.__name__] + history[1:]
                     writer.writerows([data_tuple])
 
         file_name = 'poker_hands_' + self.id + '.csv'
         file_loc = os.path.join(data_dir,file_name)
 
-        fieldnames = ["game_id","player_name","player_type","bet_number",
+        fieldnames = ["table_id","game_id","player_name","player_type","bet_number",
                                 "opponents","call","current","final","pot","allowed",
                                 "hand1","hand2","community1","community2","community3",
                                 "community4","community5"]
@@ -783,7 +784,20 @@ class Table():
             writer = csv.writer(csvfile)
             writer.writerow(fieldnames) 
             for player in self.players:
-                writer.writerows(player.hand_history)
+                for history in player.hand_history:
+                    data_tuple = [str(self.id)] + history
+                    writer.writerows([data_tuple])
+
+        file_name = 'poker_table_info_' + self.id + '.csv'
+        file_loc = os.path.join(data_dir,file_name)
+
+        fieldnames = ["table_id","player_types"]
+
+        with open(file_loc,'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(fieldnames) 
+            data_tuple=[str(self.id),self.player_types_names]
+            writer.writerows([data_tuple])
         return 0
 
 class AlwaysCallPlayer(GenericPlayer):
@@ -829,23 +843,44 @@ class SmartPlayer(GenericPlayer):
         return None
 
 global player_types 
-player_types = [cls.__name__ for cls in GenericPlayer.__subclasses__()] # lists all possible Player Stragegies
+player_type_allowed_classes = [cls.__name__ for cls in GenericPlayer.__subclasses__()] # lists all possible Player Stragegies
+
+def validate_player_types(player_types_list):
+    for player_type in player_types_list:
+        if player_type not in player_types:
+            raise Exception("Bad Player Type, should be in: {}".format(player_type_allowed_classes))
+    return 0
 
 if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
 
-    player_types = [
-        AlwaysCallPlayer, # defines strategy of player 1
-        AlwaysCallPlayer, # defines strategy of player 2
-        AlwaysCallPlayer, # defines strategy of player 3
-        AlwaysCallPlayer, # defines strategy of player 4
-        AlwaysCallPlayer, # defines strategy of player 5
-        SmartPlayer # defines strategy of player 6
+    all_simulations = [
+        [ # game 1
+            AlwaysCallPlayer, # defines strategy of player 1
+            AlwaysCallPlayer, # defines strategy of player 2
+            AlwaysCallPlayer, # defines strategy of player 3
+            AlwaysCallPlayer, # defines strategy of player 4
+            AlwaysCallPlayer, # defines strategy of player 5
+            SmartPlayer # defines strategy of player 6
+        ],
+        [ # game 2
+            AlwaysRaisePlayer, # defines strategy of player 1
+            AlwaysRaisePlayer, # defines strategy of player 2
+            AlwaysRaisePlayer, # defines strategy of player 3
+            AlwaysRaisePlayer, # defines strategy of player 4
+            AlwaysRaisePlayer, # defines strategy of player 5
+            SmartPlayer # defines strategy of player 6
+        ]      
     ]
 
-    for _ in range(1):
-        casino = Table(player_types=player_types,beginning_balance=100000,minimum_play_balance=50,hands=100) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
-        casino.run_simulation() # start the actual simulation
-        casino.run_analysis() # only remove comment if you want to generate files for the game
+    for player_types in all_simulations:
+        validate_player_types(player_types)
+
+    for player_types in all_simulations:
+        for _ in range(1):
+            casino = Table(player_types=player_types,beginning_balance=100000,minimum_play_balance=50,hands=100) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
+            casino.run_simulation() # start the actual simulation
+            casino.run_analysis() # only remove comment if you want to generate files for the game
+            break
         break
     print("finished poker simulation...")
