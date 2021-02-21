@@ -15,6 +15,13 @@ import time
 Card = collections.namedtuple('Card', ['rank', 'suit'])
 RankMap = {rank:i+1 for i, rank in enumerate([str(n) for n in range(2, 11)] + list('JQKA'))}
 
+# the stupidest way of preserving an index, your welcome 
+global unique_table_id
+global unique_game_id
+
+unique_table_id = 0
+unique_game_id = 0
+
 debug=0
 
 def dprint(message):
@@ -291,6 +298,7 @@ class GenericPlayer(object):
         """
         self.name = name
         self.balance = balance # players bank account
+        self.beginning_balance = self.balance
         self.bet = 0
         self.wins = 0
         self.loses = 0
@@ -304,15 +312,42 @@ class GenericPlayer(object):
         self.current_bet = 0
         self.final_bet = 0
         self.bid_number = 0
+        self.registered_balance = balance
+        self.folded_this_game = 0
+        self.last_survivor_this_game = 0
+        self.won_game = 0
 
     def register_for_game(self,game_id):
         self.games_played.append(game_id)
         self.current_game = game_id
         self.bid_number = 0
+        self.registered_balance = self.balance
+        self.folded_this_game = 0
+        self.last_survivor_this_game = 0
+        self.won_game = 0
+        self.blind_type = 'None'
         return None 
 
+    def set_blind(self,blind_type=None):
+        self.blind_type = blind_type
+        return None
+
     def update_balance_history(self):
-        self.balance_history.append(self.balance)
+        if self.won_game == 1:
+            end_game_result = 'won'
+        else:
+            end_game_result = 'lost'
+
+        if self.folded_this_game == 1:
+            player_status = 'fold'
+        elif self.last_survivor_this_game == 1:
+            player_status = 'last_man_standing'
+        elif self.won_game == 1:
+            player_status = 'won_game'
+        else:
+            player_status = 'lost_game'
+
+        self.balance_history.append([self.current_game, end_game_result, player_status, self.blind_type, self.beginning_balance, self.registered_balance, self.balance, self.balance - self.registered_balance])
         return None
 
     def get_pot(self,pot_value):
@@ -320,6 +355,7 @@ class GenericPlayer(object):
             You get the pot and add it to you balance.
         """
         self.balance = self.balance + pot_value
+        self.won_game = 1
         return None
 
     def pay_bid(self,pay_bid):
@@ -345,6 +381,7 @@ class GenericPlayer(object):
         if self.opponents == 0:
             dprint("{} - is last man standing".format(self.name))
             self.call_bet()
+            self.last_survivor_this_game = 1
             return 1
         return 0
 
@@ -400,6 +437,7 @@ class GenericPlayer(object):
         """
         dprint("{} - folds".format(self.name))
         self.final_bet = None
+        self.folded_this_game = 1
         return None
 
     def record_bet(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
@@ -479,24 +517,28 @@ class Game():
         pre-flob, post-flob and scoring of games.  The 
     """
     def __init__(self,cards,players,minimum_balance_to_join):
+        global unique_game_id
+        unique_game_id = unique_game_id + 1
+        self.id = str(unique_game_id)
         self.cards = cards
         self.river = cards[:5]
         self.winner = None
         self.big_blind = 10
         self.small_blind = 5
         # you need a minimum balance otherwise, players with $0 will join your game.
-        self.minumum = minimum_balance_to_join * 10
+        self.minumum = minimum_balance_to_join
         self.players = [{"player": player, "active": 1, "hand": None, "bet": 0} for player in players if player.balance > self.minumum] # get rid of losers that don't have enough money
+
+        for player in players:
+            player.register_for_game(self.id) # get the unique memory id for the game
 
         # every poker game has a small and big blind to prevent people from always folding unless they have pocket aces.
         self.players[-1]['bet'] = self.big_blind
         self.players[-1]['player'].pay_bid(self.big_blind)
+        self.players[-1]['player'].set_blind('big')
         self.players[-2]['bet'] = self.small_blind 
         self.players[-2]['player'].pay_bid(self.small_blind)
-        self.id = str(int(round(time.time(),0)))
-
-        for player in players:
-            player.register_for_game(self.id) # get the unique memory id for the game
+        self.players[-2]['player'].set_blind('small')
         
     def get_current_pot(self):
         """
@@ -686,12 +728,15 @@ class Table():
         flehsed out a bit.
     """
     def __init__(self,players,beginning_balance,minimum_play_balance,hands):
+        global unique_table_id
+        unique_table_id += 1
         self.player_num = players 
         self.players = None
         self.balance = beginning_balance
         self.min_balance = minimum_play_balance
         self.hands = hands
         self.games_played = []
+        self.id = str(int(unique_table_id))
 
     def add_games_played(self,game_id):
         self.games_played.append(game_id)
@@ -699,14 +744,17 @@ class Table():
 
     def initialize_players(self):
         """ create new players with certain balance of dollars to play with"""
+        if self.player_num < 2:
+            raise Exception("Error: too few players")
+
         players = []
         for player in range(self.player_num - 1):
             balance = self.balance 
-            name = "players - standard - " + str(player + 1)
+            name = "players_" + str(player + 1)
             new_player = AlwaysCallPlayer(name,balance)
             players.append(new_player)
 
-        name = "players - smart - 6"
+        name = "players_{}".format(self.player_num)
         balance = self.balance 
         new_player = SmartPlayer(name,balance)
         players.append(new_player)
@@ -714,6 +762,10 @@ class Table():
         self.players = players
         
         return players
+
+    def progress_player_turn_order(self):
+        self.players = self.players[-1:] + self.players[:-1]
+        return None
 
     def run_simulation(self):
         """
@@ -730,6 +782,7 @@ class Table():
             game = Game(hand,self.players,self.min_balance) # Start a new game instance with settings
             self.add_games_played(game.id)
             game.run_game() # start the actual simulation
+            self.progress_player_turn_order()
 
         elapsed_time = time.time() - start_time
         dprint("ending poker game: {} games in {} seconds".format(self.hands,round(elapsed_time,2)))
@@ -747,23 +800,22 @@ class Table():
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
 
-        file_name = 'poker_balances' + str(round(time.time(),0)) + '.csv'
+        file_name = 'poker_balances_' + self.id + '.csv'
         file_loc = os.path.join(data_dir,file_name)
 
-        fieldnames = ["player_name","player_type","beginning_balance"] + ['balance_' + game_id for game_id in self.games_played]
-        balance_data = [[player.balance_history[i+1]-player.balance_history[i] for i in range(len(player.balance_history)-1)] 
-                                    for player in self.players]
-        player_names = [[player.name,player.__class__.__name__] for player in self.players]
-        
-        for i, player in enumerate(player_names):
-            balance_data[i] = player + [self.balance] + balance_data[i]
+        fieldnames = ['game_id','player_name','player_type','game_result', 
+                                    'game_reason', 'blind_type', 'beginning_balance',
+                                    'game_start_balance','game_end_balance','game_net_change']
         
         with open(file_loc,'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(fieldnames)
-            writer.writerows(balance_data)
+            for i,player in enumerate(self.players):
+                for history in player.balance_history:
+                    data_tuple = [history[0]] + [player.name] + [player.__class__.__name__] + history[1:]
+                    writer.writerows([data_tuple])
 
-        file_name = 'poker_hands' + str(round(time.time(),0)) + '.csv'
+        file_name = 'poker_hands_' + self.id + '.csv'
         file_loc = os.path.join(data_dir,file_name)
 
         fieldnames = ["game_id","player_name","player_type","bet_number",
@@ -778,10 +830,14 @@ class Table():
                 writer.writerows(player.hand_history)
         return 0
 
+global player_types 
+player_types = [cls.__name__ for cls in GenericPlayer.__subclasses__()] # lists all possible Player Stragegies
+
 if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
-    for _ in range(10):
-        casino = Table(players=6,beginning_balance=1000,minimum_play_balance=50,hands=1000) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
+    for _ in range(25):
+        casino = Table(players=6,beginning_balance=100000,minimum_play_balance=50,hands=1000) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
         casino.run_simulation() # start the actual simulation
         casino.run_analysis() # only remove comment if you want to generate files for the game
+        break
     print("finished poker simulation...")
