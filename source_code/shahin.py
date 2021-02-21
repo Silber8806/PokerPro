@@ -294,13 +294,29 @@ if __name__ == '__main__':
     print("You can create hands here that are random for testing purposes")
     '''
     deck = FrenchDeck()
+    hand_score=[]
+    same_rank=[]
     for hand in deck.permute(7,10):
         #print(hand)
         #delete this later added for test
-        if score_hand(hand)[0]>7:
-            print("=============================================================================================================")
-            print(score_hand(hand))
+        
+        hand_score.append(score_hand(hand))
         last_hand = hand
+    hierarchy_score=[each_hand[0] for each_hand in hand_score]
+    print(hand_score)
+    print(hierarchy_score)
+    count=0
+    hand_rank=0
+    for i,hand_rank in enumerate(hierarchy_score):
+        if hand_rank==max(hierarchy_score):
+            if count==0:
+                same_rank=hand_score[i]
+            elif ((count>0) & (same_rank==hand_score[i])):
+                same_rank.append(hand_score[i])
+            elif ((count>0) & (same_rank<hand_score[i])):
+                same_rank=hand_score[i]
+            count+=1    
+    print('highest rank is ', same_rank)
 
     '''
     print("switching last hand to hand for exercise")
