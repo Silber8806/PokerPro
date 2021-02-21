@@ -830,10 +830,14 @@ class Table():
                 writer.writerows(player.hand_history)
         return 0
 
+global player_types 
+player_types = [cls.__name__ for cls in GenericPlayer.__subclasses__()] # lists all possible Player Stragegies
+
 if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
-    for _ in range(10):
+    for _ in range(25):
         casino = Table(players=6,beginning_balance=100000,minimum_play_balance=50,hands=1000) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
         casino.run_simulation() # start the actual simulation
         casino.run_analysis() # only remove comment if you want to generate files for the game
+        break
     print("finished poker simulation...")
