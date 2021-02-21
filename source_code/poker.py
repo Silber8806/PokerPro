@@ -800,6 +800,29 @@ class Table():
             writer.writerows([data_tuple])
         return 0
 
+# Write your own classes here to implement a new player strategy
+# first you inherit from GenericPlayer, which implements under the cover the mechanisms for joining a game
+# use self.call_bet() to make a call or check
+# use self.raise_bet(number) to increase your bet by number
+# use self.fold to fold.
+# automatically does the accounting under the cover.
+# feel free to use these variables in making decisions...explained below:
+# hand -> 2-card hand the player holds, see Card named-tuple
+# river -> 3-4-5 card hand the player holds, see Card named-tuple for details
+# opponents -> how many opponents are left
+# call_bid -> current amount required to make a call
+# current_bid -> current amount already put into pot
+# pot -> current pot, basically how much you can earn if you win
+# raise_allowed -> influences raise behavior, last round of betting raises aren't allowed so rasies become calls
+
+# The below are some sample classes:
+# AlwaysCallPlayer:
+# Player will always call no matter what
+# AlwaysRaisePlayer:
+# player will always raise no matter what
+# SmartPlayer:
+# raises 10% of the time, else does a monte carlo simulation of hand and calls only if they will most likely win money.
+
 class AlwaysCallPlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         self.call_bet()
@@ -928,12 +951,6 @@ def run_all_simulations(config):
     print("")
     print('finished all simulation')
     return None
-
-def validate_player_types(player_types_list):
-    for player_type in player_types_list:
-        if player_type.__name__  not in player_type_allowed_classes:
-            raise Exception("Bad Player Type, should be in: {}".format(player_type_allowed_classes))
-    return 0
 
 debug=0 # to see detailed messages of simulation, put this to 1, think verbose mode
 
