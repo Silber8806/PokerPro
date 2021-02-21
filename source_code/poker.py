@@ -812,7 +812,14 @@ class Table():
 
     def run_analysis(self):
         """
-            run a quick analysis and statistics section for the players...
+            This part exports data for consumption in Jupyter notebook system.  3 files 
+            created below:
+            poker_balances*.csv -> think of this as game level information
+            poker_hands*.csv -> think of this as information about each persons bet.  Each player makes 12 bets per Game max over 4 different card + community card situations
+            poker_table_info*.csv -> think of this information as tying a simulation scenario to a table.
+
+            All the data is pulled from either the table class or the Player class purposely to prevent too much muddling and tight coupling.
+            Table class more so since this is a method of the class.  Player is the primary reporting class.
         """
 
         script_dir = os.path.dirname(__file__)
