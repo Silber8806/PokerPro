@@ -958,14 +958,14 @@ if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
 
     simulations = {
-       'tables': 10,
-       'hands': 10,
-       'balance': 100000,
-       'minimum_balance': 50,
-       'simulations': [
+       'tables': 10, # number of poker tables simulated
+       'hands': 10, # number of hands the dealer will player, has to be greater than 2
+       'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
+       'minimum_balance': 50, # minimum balance to join a table
+       'simulations': [ # each dict in the list is a simulation to run
             {
-                'simulation_name': 'all_call_against_smart_player',
-                'player_types': [ 
+                'simulation_name': 'all_call_against_smart_player', # name of simulation - reference for data analytics
+                'player_types': [  # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     AlwaysCallPlayer, # defines strategy of player 3
@@ -975,8 +975,8 @@ if __name__ == '__main__':
                 ]
             },
             {
-                'simulation_name': 'all_raise_against_smart_player',
-                'player_types': [ 
+                'simulation_name': 'all_raise_against_smart_player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     AlwaysCallPlayer, # defines strategy of player 3
