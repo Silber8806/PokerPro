@@ -18,11 +18,10 @@ RankMap = {rank:i+1 for i, rank in enumerate([str(n) for n in range(2, 11)] + li
 # the stupidest way of preserving an index, your welcome 
 global unique_table_id
 global unique_game_id
+global debug
 
 unique_table_id = 0
 unique_game_id = 0
-
-debug=0
 
 def dprint(message):
     if debug == 1:
@@ -801,6 +800,29 @@ class Table():
             writer.writerows([data_tuple])
         return 0
 
+# Write your own classes here to implement a new player strategy
+# first you inherit from GenericPlayer, which implements under the cover the mechanisms for joining a game
+# use self.call_bet() to make a call or check
+# use self.raise_bet(number) to increase your bet by number
+# use self.fold to fold.
+# automatically does the accounting under the cover.
+# feel free to use these variables in making decisions...explained below:
+# hand -> 2-card hand the player holds, see Card named-tuple
+# river -> 3-4-5 card hand the player holds, see Card named-tuple for details
+# opponents -> how many opponents are left
+# call_bid -> current amount required to make a call
+# current_bid -> current amount already put into pot
+# pot -> current pot, basically how much you can earn if you win
+# raise_allowed -> influences raise behavior, last round of betting raises aren't allowed so rasies become calls
+
+# The below are some sample classes:
+# AlwaysCallPlayer:
+# Player will always call no matter what
+# AlwaysRaisePlayer:
+# player will always raise no matter what
+# SmartPlayer:
+# raises 10% of the time, else does a monte carlo simulation of hand and calls only if they will most likely win money.
+
 class AlwaysCallPlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         self.call_bet()
@@ -843,19 +865,104 @@ class SmartPlayer(GenericPlayer):
             self.fold_bet()
         return None
 
-global player_types 
-player_type_allowed_classes = [cls.__name__ for cls in GenericPlayer.__subclasses__()] # lists all possible Player Stragegies
+def validate_config(config):
+    print("validating the simulation settings...")
 
-def validate_player_types(player_types_list):
-    for player_type in player_types_list:
-        if player_type.__name__  not in player_type_allowed_classes:
-            raise Exception("Bad Player Type, should be in: {}".format(player_type_allowed_classes))
-    return 0
+    required_keys = set(['tables','hands','balance','minimum_balance','simulations'])
+    config_options = set(config.keys())
+
+    if not required_keys.issubset(config_options):
+        for option in config_options:
+            if option not in required_keys:
+                print("missing: {}".format(option))
+        raise Exception("Config Error: Missing Keys in Simulation Config")
+
+    bad_integer_error=0
+    for numeric_option in ['tables','hands','balance','minimum_balance']:
+        if not isinstance(config[numeric_option],int):
+            bad_integer_error=1
+            print("Config Error: {} should be an integer".format(numeric_option))
+            continue
+
+        if int(config[numeric_option]) < 1:
+            bad_integer_error=1
+            print("Config Error: {} should be an integer greater than 0".format(numeric_option))
+
+    if bad_integer_error == 1:
+        raise Exception("Config_Error: bad type found!")
+
+    if config['hands'] < 2:
+        raise Exception("Config Error: hands needs to be at minimum 2")
+
+    if config['balance'] < config['minimum_balance']:
+        raise Exception("Config Error: {} player beginning balance has to be greater than {}".format(config['balance'],config['minimum_balance']))
+    
+    if not isinstance(config['simulations'],list):
+        raise Exception("Config Error: simulations should be a list of simulations")
+
+    if len(config['simulations']) < 1:
+        raise Exception("Config Error: you need at least 1 simulation under simulations key")
+
+    for simulation in config['simulations']:
+        if 'simulation_name' not in simulation:
+            raise Exception("Config Error: simulation is missing simulation_name key")
+        if 'player_types' not in simulation:
+            raise Exception("Config Error: simulation is missing player_types array")
+        if not isinstance(simulation['player_types'],list):
+            raise Exception("Config Error: simulation player_types key needs to be a list")
+        player_type_allowed_classes = [cls.__name__ for cls in GenericPlayer.__subclasses__()]
+        if len(simulation['player_types']) < 2 or len(simulation['player_types']) > 6:
+            raise ExceptioN("Config Error: simulation has less than 2 or more than 6 players") 
+        for player_type in simulation['player_types']:
+            if player_type.__name__ not in player_type_allowed_classes:
+                raise Exception("Config issue: {} not in {} allowed player_types".format(player_type.__name__, player_type_allowed_classes))
+
+    print('finished the validation settings...')
+    return None
+
+def run_all_simulations(config):
+    validate_config(config)
+    tables = config['tables']
+    hands =config['hands']
+    player_balance = config['balance']
+    minimum_to_play = config['minimum_balance']
+    simulations = config['simulations']
+
+    print("beginning all simulation...")
+    for simulation in simulations:
+        print("")
+        print("simulation running: {}".format(simulation['simulation_name']))
+        start_time = time.time()
+        for table in range(tables):
+            dprint("simulating table: {}".format(table+1))
+            casino = Table(
+                            scenario_name=simulation['simulation_name'],
+                            player_types=simulation['player_types'],
+                            beginning_balance=player_balance,
+                            minimum_play_balance=minimum_to_play,
+                            hands=hands
+                        )
+            casino.run_simulation() # start the actual simulation
+            casino.run_analysis() # only remove comment if you want to generate files for the game
+        end_time = time.time()
+        elapsed_time = round(end_time - start_time,2)
+        print("simulation finished: {} - time_required: {} seconds".format(simulation['simulation_name'],elapsed_time))
+        dprint("")
+    print("")
+    print('finished all simulation')
+    return None
+
+debug=0 # to see detailed messages of simulation, put this to 1, think verbose mode
 
 if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
 
-    all_simulations = [
+    simulations = {
+       'tables': 10,
+       'hands': 10,
+       'balance': 100000,
+       'minimum_balance': 50,
+       'simulations': [
             {
                 'simulation_name': 'all_call_against_smart_player',
                 'player_types': [ 
@@ -878,16 +985,7 @@ if __name__ == '__main__':
                     SmartPlayer # defines strategy of player 6
                 ]
             }    
-    ]
+        ]
+    }
 
-    for simulation in all_simulations:
-        validate_player_types(simulation['player_types'])
-
-    for simulation in all_simulations:
-        for _ in range(10):
-            casino = Table(scenario_name=simulation['simulation_name'],player_types=simulation['player_types'],beginning_balance=100000,minimum_play_balance=50,hands=100) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
-            casino.run_simulation() # start the actual simulation
-            casino.run_analysis() # only remove comment if you want to generate files for the game
-            break
-        break
-    print("finished poker simulation...")
+    run_all_simulations(simulations)
