@@ -469,48 +469,6 @@ class GenericPlayer(object):
     def __str__(self):
         return "{} [balance: ${}]".format(self.name,self.balance)
 
-class AlwaysCallPlayer(GenericPlayer):
-    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
-        self.call_bet()
-        return None
-
-class AlwaysRaisePlayer(GenericPlayer):
-    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
-        self.raise_bet(20)
-        return None
-
-class SmartPlayer(GenericPlayer):
-    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
-        """
-            This is the only strategy for playing cards that I've implemented.  It's not done
-            yet.  The gist of it is as follows:
-
-            1. you calculate your win probability using the simulate_win_odds (still needs to score hands to work)
-            2. you calculate the expected profit: chance of win * current pot - chance of losing * current bid (should be full bid price)
-            3. if you have no opponents, you win, so you call/check and collect your money.
-            4. you decide to raise the pot 10% of the time for $10
-            5. if you will make a profit, you at minimum check/call.
-            6. if you lose money on average, than just fold and get out of the game.
-
-            The return has the following meaning:
-            return <number> -> your total bet for this turn.  Most be equal or greater than current_bid + call_bid.
-            return None -> you folded this hand and lose all your money.
-        """
-        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=5)
-        expected_profit = round(win_probabilty * pot - (1 - win_probabilty) * current_bid,2)
-
-        forced_raise = random.randint(0,10)
-        if forced_raise < 6:
-            self.raise_bet(10)
-            return None
-
-        # if you statistically will make money, call the bid else just fold
-        if expected_profit > 0:
-            self.call_bet()
-        else:
-            self.fold_bet()
-        return None
-
 class Game():
     """
         Game implements an actual poker game.  It has all the mechanics to do
@@ -727,10 +685,10 @@ class Table():
         and than streams a set of cards, which it uses per game.  This needs to be 
         flehsed out a bit.
     """
-    def __init__(self,players,beginning_balance,minimum_play_balance,hands):
+    def __init__(self,player_types,beginning_balance,minimum_play_balance,hands):
         global unique_table_id
         unique_table_id += 1
-        self.player_num = players 
+        self.player_types = player_types 
         self.players = None
         self.balance = beginning_balance
         self.min_balance = minimum_play_balance
@@ -744,20 +702,18 @@ class Table():
 
     def initialize_players(self):
         """ create new players with certain balance of dollars to play with"""
-        if self.player_num < 2:
+        if len(self.player_types) < 2:
             raise Exception("Error: too few players")
 
-        players = []
-        for player in range(self.player_num - 1):
-            balance = self.balance 
-            name = "players_" + str(player + 1)
-            new_player = AlwaysCallPlayer(name,balance)
-            players.append(new_player)
+        if len(self.player_types) > 6:
+            raise Exception("Error: no more than 6 players allowed")
 
-        name = "players_{}".format(self.player_num)
-        balance = self.balance 
-        new_player = SmartPlayer(name,balance)
-        players.append(new_player)
+        players = []
+        for i, player_type in enumerate(self.player_types):
+            balance = self.balance 
+            name = "players_" + str(i + 1)
+            new_player = player_type(name,balance)
+            players.append(new_player)
 
         self.players = players
         
@@ -778,7 +734,7 @@ class Table():
 
         self.initialize_players() # create your players
         
-        for _, hand in enumerate(deck.permute(self.player_num * 2 + 5,self.hands)): # start streaming 5 cards + 2 per person.  Permute means it reshuffles each time.
+        for _, hand in enumerate(deck.permute(len(self.player_types) * 2 + 5,self.hands)): # start streaming 5 cards + 2 per person.  Permute means it reshuffles each time.
             game = Game(hand,self.players,self.min_balance) # Start a new game instance with settings
             self.add_games_played(game.id)
             game.run_game() # start the actual simulation
@@ -830,13 +786,58 @@ class Table():
                 writer.writerows(player.hand_history)
         return 0
 
+class AlwaysCallPlayer(GenericPlayer):
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        self.call_bet()
+        return None
+
+class AlwaysRaisePlayer(GenericPlayer):
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        self.raise_bet(20)
+        return None
+
+class SmartPlayer(GenericPlayer):
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        """
+            This is the only strategy for playing cards that I've implemented.  It's not done
+            yet.  The gist of it is as follows:
+
+            1. you calculate your win probability using the simulate_win_odds (still needs to score hands to work)
+            2. you calculate the expected profit: chance of win * current pot - chance of losing * current bid (should be full bid price)
+            3. if you have no opponents, you win, so you call/check and collect your money.
+            4. you decide to raise the pot 10% of the time for $10
+            5. if you will make a profit, you at minimum check/call.
+            6. if you lose money on average, than just fold and get out of the game.
+
+            The return has the following meaning:
+            return <number> -> your total bet for this turn.  Most be equal or greater than current_bid + call_bid.
+            return None -> you folded this hand and lose all your money.
+        """
+        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=5)
+        expected_profit = round(win_probabilty * pot - (1 - win_probabilty) * current_bid,2)
+
+        forced_raise = random.randint(0,10)
+        if forced_raise < 6:
+            self.raise_bet(10)
+            return None
+
+        # if you statistically will make money, call the bid else just fold
+        if expected_profit > 0:
+            self.call_bet()
+        else:
+            self.fold_bet()
+        return None
+
 global player_types 
 player_types = [cls.__name__ for cls in GenericPlayer.__subclasses__()] # lists all possible Player Stragegies
 
 if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
-    for _ in range(25):
-        casino = Table(players=6,beginning_balance=100000,minimum_play_balance=50,hands=1000) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
+
+    player_types = [AlwaysCallPlayer,AlwaysCallPlayer,AlwaysCallPlayer,SmartPlayer,SmartPlayer,SmartPlayer]
+
+    for _ in range(1):
+        casino = Table(player_types=player_types,beginning_balance=100000,minimum_play_balance=50,hands=100) # Create a table with a deck and players.  Start dealing cards in a stream and play a game per hand.
         casino.run_simulation() # start the actual simulation
         casino.run_analysis() # only remove comment if you want to generate files for the game
         break
