@@ -304,6 +304,8 @@ def is_straight(cards):
     straight={}
     card_rank=[]
     card_suit=[]
+    deck=FrenchDeck()
+    Ranks=deck.ranks
     for card in cards:
         card_rank.append(Ranks.index(card.rank))
         card_suit.append(card.suit)
@@ -347,6 +349,8 @@ def is_fullHouse(cards):
     card_rank=[]
     high_fullhouse=[]
     fullhouse_dic={}
+    deck=FrenchDeck()
+    Ranks=deck.ranks
     for card in cards:
         card_rank.append(card.rank)
     rank_set=list(Counter(card_rank).keys())
@@ -370,6 +374,8 @@ def is_fullHouse(cards):
 def number_of_kind(cards):
     "This function returns highes number of a kind anywhere between 2 to 4 if there is less than 2 of a kind it returns highes card"
     card_rank=[]
+    deck=FrenchDeck()
+    Ranks=deck.ranks
     for card in cards:
         card_rank.append(card.rank)
     rank_set=list(Counter(card_rank).keys())
@@ -450,8 +456,15 @@ def number_of_kind(cards):
 
 "returning hands scoure in terms of dictionary with their values being a list to make it easier to compare hand at the end"
 
-
 def score_hand(cards):
+    """This function gets the hands for all the players and pass it on to score single hands hards to get the list of players scores
+    """
+    score_list=[]
+    for player_hand in cards:
+        score_list.append(score_single_hand(player_hand))
+    return score_list
+
+def score_single_hand(cards):
     print("scoring: {}".format(cards))
     """ This function scoring each hand and returning a list as score with priority score starting from item 0 in the score
     for example the highest ranking of the hands given to straight flush, if two people get straight flush then it will look at
@@ -538,6 +551,7 @@ def winning_hand(*hands):
         Right now it just randomly picks win or lose.  Use the hand score function
         here and than check if 1st entry has highest rank.
     """
+    print("hands are ", hands)
     winning_hand=[]
     hand_scores = []
     player_scores=[]
@@ -547,12 +561,12 @@ def winning_hand(*hands):
             winning_hand=score 
         hand_scores.append(score)
     for player,hand in enumerate(hands):
-        if hand==winning_hands:
+        if hand==winning_hand:
             player_scores.append(1)
         else:
             player_scores.append(0)
     # if 1st hand did not win return 0 else 1
-    return player_scores
+    return player_scores[0]
 
 
 
