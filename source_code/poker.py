@@ -18,6 +18,8 @@ Card = collections.namedtuple('Card', ['rank', 'suit'])
 # maps card ranks to integers
 RankMap = {rank:i+1 for i, rank in enumerate([str(n) for n in range(2, 11)] + list('JQKA'))}
 Ranks = [str(n) for n in range(2, 11)] + list('JQKA')
+PokerHierachy ={'high_card':1,'one_pair':2,'two_pair':3,'three_of_kind':4,'straight':5,'flush':6,'full_house':7,'four_of_kind':8,'straight_flush':9}
+PokerInverseHierachy={poker_number:name for name,poker_number in PokerHierachy.items()}
 
 # the stupidest way of preserving an index, your welcome 
 global unique_table_id
@@ -602,6 +604,7 @@ class GenericPlayer(object):
         self.folded_this_game = 0
         self.last_survivor_this_game = 0
         self.won_game = 0
+        self.final_hand = None
 
     def register_for_game(self,game_id):
         """
@@ -618,6 +621,10 @@ class GenericPlayer(object):
         self.won_game = 0
         self.blind_type = 'None'
         return None 
+
+    def set_final_hand(self,hand_number):
+        self.final_hand = PokerInverseHierachy[hand_number]
+        return None
 
     def set_blind(self,blind_type=None):
         """
@@ -648,7 +655,7 @@ class GenericPlayer(object):
             player_status = 'lost_game'
 
         # this represents a row in the data analysis for this specific player.
-        self.balance_history.append([self.current_game, end_game_result, player_status, self.blind_type, self.beginning_balance, self.registered_balance, self.balance, self.balance - self.registered_balance])
+        self.balance_history.append([self.current_game, end_game_result, player_status, self.blind_type, self.final_hand, self.beginning_balance, self.registered_balance, self.balance, self.balance - self.registered_balance])
         return None
 
     def get_pot(self,pot_value):
@@ -981,7 +988,9 @@ class Game():
         all_scored_hands = []
         for player in self.get_active_players(): # this is the actual function, still needs to be implemented
             dprint("checking win condition for {}".format(player))
-            all_scored_hands.append(score_hand(player['hand'] + self.river))
+            player_hand_score = score_hand(player['hand'] + self.river)
+            all_scored_hands.append(player_hand_score)
+            player['player'].set_final_hand(player_hand_score[0])
 
         best_hand = max(all_scored_hands)
         winners = [1 if hand == best_hand else 0 for hand in all_scored_hands]
@@ -1112,7 +1121,7 @@ class Table():
         file_loc = os.path.join(data_dir,file_name)
 
         fieldnames = ['table_id','game_id','player_name','player_type','game_result', 
-                                    'game_reason', 'blind_type', 'beginning_balance',
+                                    'game_reason', 'blind_type', 'final_hand', 'beginning_balance',
                                     'game_start_balance','game_end_balance','game_net_change']
         
         with open(file_loc,'w', newline='') as csvfile:
@@ -1343,13 +1352,13 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 100, # number of poker tables simulated
+       'tables': 10, # number of poker tables simulated
        'hands': 100, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run
             {
-                'simulation_name': 'all_call_against_smart_player', # name of simulation - reference for data analytics
+                'simulation_name': 'smart vs 1 all call player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
                     # AlwaysCallPlayer, # defines strategy of player 2
@@ -1360,7 +1369,40 @@ if __name__ == '__main__':
                 ]
             },
             {
-                'simulation_name': 'all_raise_against_smart_player', # name of simulation - reference for data analytics
+                'simulation_name': 'smart vs 2 all call player', # name of simulation - reference for data analytics
+                'player_types': [  # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    # AlwaysCallPlayer, # defines strategy of player 3
+                    # AlwaysCallPlayer, # defines strategy of player 4
+                    # AlwaysCallPlayer, # defines strategy of player 5
+                    SmartPlayer # defines strategy of player 6
+                ]
+            },
+            {
+                'simulation_name': 'smart vs 3 all call player', # name of simulation - reference for data analytics
+                'player_types': [  # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    # AlwaysCallPlayer, # defines strategy of player 4
+                    # AlwaysCallPlayer, # defines strategy of player 5
+                    SmartPlayer # defines strategy of player 6
+                ]
+            },
+            {
+                'simulation_name': 'smart vs 4 all call player', # name of simulation - reference for data analytics
+                'player_types': [  # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    AlwaysCallPlayer, # defines strategy of player 4
+                    # AlwaysCallPlayer, # defines strategy of player 5
+                    SmartPlayer # defines strategy of player 6
+                ]
+            },
+            {
+                'simulation_name': 'smart vs 5 all call player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
