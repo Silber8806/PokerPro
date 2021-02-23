@@ -17,6 +17,7 @@ Card = collections.namedtuple('Card', ['rank', 'suit'])
 
 # maps card ranks to integers
 RankMap = {rank:i+1 for i, rank in enumerate([str(n) for n in range(2, 11)] + list('JQKA'))}
+Ranks = [str(n) for n in range(2, 11)] + list('JQKA')
 
 # the stupidest way of preserving an index, your welcome 
 global unique_table_id
@@ -103,6 +104,11 @@ class FrenchDeck():
         if self.cards and self.removed_cards:
             self.cards = self.saved_deck[:]
             self.removed_cards = self.removed_cards[:]
+        return None
+
+    def reshuffle_draw_deck(self):
+        """ reshuffle only the draw deck """
+        random.shuffle(self.cards)
         return None
 
     def reshuffle(self):
@@ -268,6 +274,7 @@ def simulate_win_odds(cards,river,opponents,runtimes=1000):
             wins += 1 # keep tabs of your wins
 
         deck.load_deck() # reset the deck for the next simulation
+        deck.reshuffle_draw_deck()
 
     return wins/float(runtimes) # your percent wins
 
@@ -334,7 +341,7 @@ def is_straight(cards):
                 for card in cards:
                     if Ranks.index(card.rank) in sort_rank[card_index:card_index+5]:
                         straight_cards.append(card)
-                print('straight_cards hand is=', straight_cards)
+                #print('straight_cards hand is=', straight_cards)
                 if is_flush(straight_cards):
                     straight_flush=True
                     straight={'straight_flush':{'suit':is_flush(straight_cards)['flush']['suit'],'High_straight_on':sort_rank[card_index+4]}}
@@ -457,15 +464,7 @@ def number_of_kind(cards):
 "returning hands scoure in terms of dictionary with their values being a list to make it easier to compare hand at the end"
 
 def score_hand(cards):
-    """This function gets the hands for all the players and pass it on to score single hands hards to get the list of players scores
-    """
-    score_list=[]
-    for player_hand in cards:
-        score_list.append(score_single_hand(player_hand))
-    return score_list
-
-def score_single_hand(cards):
-    print("scoring: {}".format(cards))
+    #print("scoring: {}".format(cards))
     """ This function scoring each hand and returning a list as score with priority score starting from item 0 in the score
     for example the highest ranking of the hands given to straight flush, if two people get straight flush then it will look at
     the secon item in the list which is the highest card on their straight flush.
@@ -505,7 +504,8 @@ def score_single_hand(cards):
         elif of_a_kind['number_of_kind']==1:
             high_card=[poker_hierarchy['high_card']]+[of_a_kind['highest_card_on']]+of_a_kind['kicker_card']
         else:
-            print("number_of_kind function should return number of kind between 1 and 4, but it returned ",of_a_kind['number_of_kind'])
+            #print("number_of_kind function should return number of kind between 1 and 4, but it returned ",of_a_kind['number_of_kind'])
+            pass
 
     if (straight_flush):
         #print("\n\n\n******************************Congratulations**straight**flush****************\n\n\n")
@@ -538,20 +538,20 @@ def score_single_hand(cards):
         #print("\n\n\n******************************Congratulations**high*card****************\n\n\n")
         return high_card
     else:
-        print('No ranking was found on this hand, check your score function')
+        #print('No ranking was found on this hand, check your score function')
+        pass
     
     
 
 
 ################end of functions defined by Shahin ###########################
 
-def winning_hand(*hands):
+def winning_hand(hands):
     """ 
         used in the simulate_win_odds function.  This needs to be implemented still.
         Right now it just randomly picks win or lose.  Use the hand score function
         here and than check if 1st entry has highest rank.
     """
-    print("hands are ", hands)
     winning_hand=[]
     hand_scores = []
     player_scores=[]
@@ -561,7 +561,7 @@ def winning_hand(*hands):
             winning_hand=score 
         hand_scores.append(score)
     for player,hand in enumerate(hands):
-        if hand==winning_hand:
+        if score_hand(hand)==winning_hand:
             player_scores.append(1)
         else:
             player_scores.append(0)
@@ -1203,8 +1203,9 @@ class SmartPlayer(GenericPlayer):
             return <number> -> your total bet for this turn.  Most be equal or greater than current_bid + call_bid.
             return None -> you folded this hand and lose all your money.
         """
-        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=5)
+        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=1000)
         expected_profit = round(win_probabilty * pot - (1 - win_probabilty) * current_bid,2)
+        print(win_probabilty)
 
         forced_raise = random.randint(0,10)
         if forced_raise < 6:
