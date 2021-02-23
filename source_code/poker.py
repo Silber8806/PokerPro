@@ -232,7 +232,7 @@ class FrenchDeck():
     def __str__(self):
         return "French Deck ({} of {} cards remaining)".format(len(self.cards),len(self.all_cards))
 
-def simulate_win_odds(cards,river,opponents,runtimes=1000):
+def simulate_win_odds(cards,river,opponents,runtimes=100):
     """
         A player can use this to simulate the odds of them winning a hand of poker.
         You give it your current hand (cards variable), the current river, which is
@@ -985,7 +985,7 @@ class Game():
 
         best_hand = max(all_scored_hands)
         winners = [1 if hand == best_hand else 0 for hand in all_scored_hands]
-        number_of_winners = len(winners)
+        number_of_winners = sum(winners)
         reward = self.get_current_pot()
         reward_per_player = reward / float(number_of_winners)
 
@@ -1186,6 +1186,28 @@ class AlwaysRaisePlayer(GenericPlayer):
         self.raise_bet(20)
         return None
 
+# Player that always calls
+class CalculatedPlayer(GenericPlayer):
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=100)
+        equal_chance_probability = 1 / float(opponents + 1)
+        if win_probabilty >= equal_chance_probability:
+            self.call_bet()
+        else:
+            self.fold_bet()
+        return None
+
+# Player that always calls
+class GambleByProbabilityPlayer(GenericPlayer):
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=100)
+        equal_chance_probability = 1 / float(opponents + 1)
+        if win_probabilty >= equal_chance_probability:
+            self.raise_bet(round(100 * win_probabilty,0))
+        else:
+            self.fold_bet()
+        return None
+
 # sophisticated player with more complicated strategy.
 class SmartPlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
@@ -1321,8 +1343,8 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 10, # number of poker tables simulated
-       'hands': 10, # number of hands the dealer will player, has to be greater than 2
+       'tables': 100, # number of poker tables simulated
+       'hands': 100, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run
