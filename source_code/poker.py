@@ -978,22 +978,23 @@ class Game():
             3. any extra goes to the casino
         """
         # dumb currently, just split pot evenly until we get proper scoring hand function
-        number_of_players = len(self.get_active_players())  # number of players still in game
-        reward = self.get_current_pot() // number_of_players # pot per player
-        casino_free_money = self.get_current_pot() % number_of_players # casinos free money
-
-        dprint("splitting the current pot: ${} by {} people".format(self.get_current_pot(),number_of_players))
-        for player in self.get_active_players(): # reward the active players
-            player['player'].get_pot(reward)
-            dprint("{} got a reward of ${} for not folding".format(player['player'],reward))
-        dprint("casino gets the remainder ${}".format(casino_free_money))
-        # dumb currently, just split pot evenly until we get proper scoring hand function
-
+        all_scored_hands = []
         for player in self.get_active_players(): # this is the actual function, still needs to be implemented
             dprint("checking win condition for {}".format(player))
-            score_hand(player['hand'] + self.river)
+            all_scored_hands.append(score_hand(player['hand'] + self.river))
 
-        for player in self.players:
+        best_hand = max(all_scored_hands)
+        winners = [1 if hand == best_hand else 0 for hand in all_scored_hands]
+        number_of_winners = len(winners)
+        reward = self.get_current_pot()
+        reward_per_player = reward / float(number_of_winners)
+
+        for player in self.get_active_players():
+            players_scored_hand = score_hand(player['hand'] + self.river)
+            if players_scored_hand == best_hand:
+                player['player'].get_pot(reward_per_player)
+
+        for player in self.players: 
             player['player'].update_balance_history()
 
         return None
@@ -1203,13 +1204,13 @@ class SmartPlayer(GenericPlayer):
             return <number> -> your total bet for this turn.  Most be equal or greater than current_bid + call_bid.
             return None -> you folded this hand and lose all your money.
         """
-        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=1000)
+        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=100)
         expected_profit = round(win_probabilty * pot - (1 - win_probabilty) * current_bid,2)
-        print(win_probabilty)
+        equal_chance_probability = 1 / float(opponents + 1)
+        high_probability_of_win = 1.4 * equal_chance_probability
 
-        forced_raise = random.randint(0,10)
-        if forced_raise < 6:
-            self.raise_bet(10)
+        if win_probabilty > high_probability_of_win:
+            self.raise_bet(100)
             return None
 
         # if you statistically will make money, call the bid else just fold
@@ -1329,10 +1330,10 @@ if __name__ == '__main__':
                 'simulation_name': 'all_call_against_smart_player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    AlwaysCallPlayer, # defines strategy of player 4
-                    AlwaysCallPlayer, # defines strategy of player 5
+                    # AlwaysCallPlayer, # defines strategy of player 2
+                    # AlwaysCallPlayer, # defines strategy of player 3
+                    # AlwaysCallPlayer, # defines strategy of player 4
+                    # AlwaysCallPlayer, # defines strategy of player 5
                     SmartPlayer # defines strategy of player 6
                 ]
             },
