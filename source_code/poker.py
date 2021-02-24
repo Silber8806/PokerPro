@@ -127,7 +127,8 @@ class FrenchDeck():
         """
         if hands < 1:
             raise Exception("Error: at least 1 hand needs to be drawn")
-
+        ## should the following line be  num_of_cards < 1 or num_of_cards > len(self.cards) @Chris
+        ## I also dont know if I am using the correct syntax for commenting.
         if num_of_cards < 1 or len(self.cards) > 52:
             raise Exception("Error: Tried to draw {} has to be between 1 and {}".format(num_of_cards,len(self.cards)))
 
@@ -170,6 +171,7 @@ class FrenchDeck():
             for creating a generator for permute class
         """
         if num_of_cards < 1 or num_of_cards > len(self.cards):
+            ## think we need the following line to: raise Exception("Error: Draw has to be between 1 and {}".format(len(self.cards)))
             raise Exception("Error: Draw has to be between 1 and 52".format(len(self.cards)))
 
         if hands < 1:
@@ -568,6 +570,9 @@ def winning_hand(hands):
         else:
             player_scores.append(0)
     # if 1st hand did not win return 0 else 1
+    ## I can make this to return fraction for tie with very simple logice like: return player_scores[0]/sum(player_scores)
+    ## for example if three people have the same hand then it will return 1/3, I dont think this will mess up any part of the logic.
+    ## what do you think?
     return player_scores[0]
 
 
@@ -662,6 +667,9 @@ class GenericPlayer(object):
         """
             You get the pot and add it to you balance.
         """
+        ## if you want to consider tie situation we can simply multiply fractional winning result by pot value, something like this:
+        ## self.balance = self.balance + winning_hands(hands)*pot_value 
+        ## or if we already assigne the winning to player object we can use that instead of calling the function again to avoide slowing down the code
         self.balance = self.balance + pot_value
         self.won_game = 1
         return None
