@@ -1,6 +1,6 @@
-# Main.py
+# Poker.py
 
-Runs simulation for us
+This is a really cool documentation....
 
 # Poker.py
 
