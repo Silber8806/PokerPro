@@ -17,6 +17,9 @@ Card = collections.namedtuple('Card', ['rank', 'suit'])
 
 # maps card ranks to integers
 RankMap = {rank:i+1 for i, rank in enumerate([str(n) for n in range(2, 11)] + list('JQKA'))}
+Ranks = [str(n) for n in range(2, 11)] + list('JQKA')
+PokerHierachy ={'high_card':1,'one_pair':2,'two_pair':3,'three_of_kind':4,'straight':5,'flush':6,'full_house':7,'four_of_kind':8,'straight_flush':9}
+PokerInverseHierachy={poker_number:name for name,poker_number in PokerHierachy.items()}
 
 # the stupidest way of preserving an index, your welcome 
 global unique_table_id
@@ -103,6 +106,11 @@ class FrenchDeck():
         if self.cards and self.removed_cards:
             self.cards = self.saved_deck[:]
             self.removed_cards = self.removed_cards[:]
+        return None
+
+    def reshuffle_draw_deck(self):
+        """ reshuffle only the draw deck """
+        random.shuffle(self.cards)
         return None
 
     def reshuffle(self):
@@ -226,7 +234,7 @@ class FrenchDeck():
     def __str__(self):
         return "French Deck ({} of {} cards remaining)".format(len(self.cards),len(self.all_cards))
 
-def simulate_win_odds(cards,river,opponents,runtimes=1000):
+def simulate_win_odds(cards,river,opponents,runtimes=100):
     """
         A player can use this to simulate the odds of them winning a hand of poker.
         You give it your current hand (cards variable), the current river, which is
@@ -268,6 +276,7 @@ def simulate_win_odds(cards,river,opponents,runtimes=1000):
             wins += 1 # keep tabs of your wins
 
         deck.load_deck() # reset the deck for the next simulation
+        deck.reshuffle_draw_deck()
 
     return wins/float(runtimes) # your percent wins
 
@@ -334,7 +343,7 @@ def is_straight(cards):
                 for card in cards:
                     if Ranks.index(card.rank) in sort_rank[card_index:card_index+5]:
                         straight_cards.append(card)
-                print('straight_cards hand is=', straight_cards)
+                #print('straight_cards hand is=', straight_cards)
                 if is_flush(straight_cards):
                     straight_flush=True
                     straight={'straight_flush':{'suit':is_flush(straight_cards)['flush']['suit'],'High_straight_on':sort_rank[card_index+4]}}
@@ -457,15 +466,7 @@ def number_of_kind(cards):
 "returning hands scoure in terms of dictionary with their values being a list to make it easier to compare hand at the end"
 
 def score_hand(cards):
-    """This function gets the hands for all the players and pass it on to score single hands hards to get the list of players scores
-    """
-    score_list=[]
-    for player_hand in cards:
-        score_list.append(score_single_hand(player_hand))
-    return score_list
-
-def score_single_hand(cards):
-    print("scoring: {}".format(cards))
+    #print("scoring: {}".format(cards))
     """ This function scoring each hand and returning a list as score with priority score starting from item 0 in the score
     for example the highest ranking of the hands given to straight flush, if two people get straight flush then it will look at
     the secon item in the list which is the highest card on their straight flush.
@@ -505,7 +506,8 @@ def score_single_hand(cards):
         elif of_a_kind['number_of_kind']==1:
             high_card=[poker_hierarchy['high_card']]+[of_a_kind['highest_card_on']]+of_a_kind['kicker_card']
         else:
-            print("number_of_kind function should return number of kind between 1 and 4, but it returned ",of_a_kind['number_of_kind'])
+            #print("number_of_kind function should return number of kind between 1 and 4, but it returned ",of_a_kind['number_of_kind'])
+            pass
 
     if (straight_flush):
         #print("\n\n\n******************************Congratulations**straight**flush****************\n\n\n")
@@ -538,20 +540,20 @@ def score_single_hand(cards):
         #print("\n\n\n******************************Congratulations**high*card****************\n\n\n")
         return high_card
     else:
-        print('No ranking was found on this hand, check your score function')
+        #print('No ranking was found on this hand, check your score function')
+        pass
     
     
 
 
 ################end of functions defined by Shahin ###########################
 
-def winning_hand(*hands):
+def winning_hand(hands):
     """ 
         used in the simulate_win_odds function.  This needs to be implemented still.
         Right now it just randomly picks win or lose.  Use the hand score function
         here and than check if 1st entry has highest rank.
     """
-    print("hands are ", hands)
     winning_hand=[]
     hand_scores = []
     player_scores=[]
@@ -561,7 +563,7 @@ def winning_hand(*hands):
             winning_hand=score 
         hand_scores.append(score)
     for player,hand in enumerate(hands):
-        if hand==winning_hand:
+        if score_hand(hand)==winning_hand:
             player_scores.append(1)
         else:
             player_scores.append(0)
@@ -602,6 +604,7 @@ class GenericPlayer(object):
         self.folded_this_game = 0
         self.last_survivor_this_game = 0
         self.won_game = 0
+        self.final_hand = None
 
     def register_for_game(self,game_id):
         """
@@ -618,6 +621,10 @@ class GenericPlayer(object):
         self.won_game = 0
         self.blind_type = 'None'
         return None 
+
+    def set_final_hand(self,hand_number):
+        self.final_hand = PokerInverseHierachy[hand_number]
+        return None
 
     def set_blind(self,blind_type=None):
         """
@@ -648,7 +655,7 @@ class GenericPlayer(object):
             player_status = 'lost_game'
 
         # this represents a row in the data analysis for this specific player.
-        self.balance_history.append([self.current_game, end_game_result, player_status, self.blind_type, self.beginning_balance, self.registered_balance, self.balance, self.balance - self.registered_balance])
+        self.balance_history.append([self.current_game, end_game_result, player_status, self.blind_type, self.final_hand, self.beginning_balance, self.registered_balance, self.balance, self.balance - self.registered_balance])
         return None
 
     def get_pot(self,pot_value):
@@ -978,22 +985,25 @@ class Game():
             3. any extra goes to the casino
         """
         # dumb currently, just split pot evenly until we get proper scoring hand function
-        number_of_players = len(self.get_active_players())  # number of players still in game
-        reward = self.get_current_pot() // number_of_players # pot per player
-        casino_free_money = self.get_current_pot() % number_of_players # casinos free money
-
-        dprint("splitting the current pot: ${} by {} people".format(self.get_current_pot(),number_of_players))
-        for player in self.get_active_players(): # reward the active players
-            player['player'].get_pot(reward)
-            dprint("{} got a reward of ${} for not folding".format(player['player'],reward))
-        dprint("casino gets the remainder ${}".format(casino_free_money))
-        # dumb currently, just split pot evenly until we get proper scoring hand function
-
+        all_scored_hands = []
         for player in self.get_active_players(): # this is the actual function, still needs to be implemented
             dprint("checking win condition for {}".format(player))
-            score_hand(player['hand'] + self.river)
+            player_hand_score = score_hand(player['hand'] + self.river)
+            all_scored_hands.append(player_hand_score)
+            player['player'].set_final_hand(player_hand_score[0])
 
-        for player in self.players:
+        best_hand = max(all_scored_hands)
+        winners = [1 if hand == best_hand else 0 for hand in all_scored_hands]
+        number_of_winners = sum(winners)
+        reward = self.get_current_pot()
+        reward_per_player = reward / float(number_of_winners)
+
+        for player in self.get_active_players():
+            players_scored_hand = score_hand(player['hand'] + self.river)
+            if players_scored_hand == best_hand:
+                player['player'].get_pot(reward_per_player)
+
+        for player in self.players: 
             player['player'].update_balance_history()
 
         return None
@@ -1111,7 +1121,7 @@ class Table():
         file_loc = os.path.join(data_dir,file_name)
 
         fieldnames = ['table_id','game_id','player_name','player_type','game_result', 
-                                    'game_reason', 'blind_type', 'beginning_balance',
+                                    'game_reason', 'blind_type', 'final_hand', 'beginning_balance',
                                     'game_start_balance','game_end_balance','game_net_change']
         
         with open(file_loc,'w', newline='') as csvfile:
@@ -1185,6 +1195,28 @@ class AlwaysRaisePlayer(GenericPlayer):
         self.raise_bet(20)
         return None
 
+# Player that always calls
+class CalculatedPlayer(GenericPlayer):
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=100)
+        equal_chance_probability = 1 / float(opponents + 1)
+        if win_probabilty >= equal_chance_probability:
+            self.call_bet()
+        else:
+            self.fold_bet()
+        return None
+
+# Player that always calls
+class GambleByProbabilityPlayer(GenericPlayer):
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=100)
+        equal_chance_probability = 1 / float(opponents + 1)
+        if win_probabilty >= equal_chance_probability:
+            self.raise_bet(round(100 * win_probabilty,0))
+        else:
+            self.fold_bet()
+        return None
+
 # sophisticated player with more complicated strategy.
 class SmartPlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
@@ -1203,12 +1235,13 @@ class SmartPlayer(GenericPlayer):
             return <number> -> your total bet for this turn.  Most be equal or greater than current_bid + call_bid.
             return None -> you folded this hand and lose all your money.
         """
-        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=5)
+        win_probabilty = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=100)
         expected_profit = round(win_probabilty * pot - (1 - win_probabilty) * current_bid,2)
+        equal_chance_probability = 1 / float(opponents + 1)
+        high_probability_of_win = 1.4 * equal_chance_probability
 
-        forced_raise = random.randint(0,10)
-        if forced_raise < 6:
-            self.raise_bet(10)
+        if win_probabilty > high_probability_of_win:
+            self.raise_bet(100)
             return None
 
         # if you statistically will make money, call the bid else just fold
@@ -1325,18 +1358,51 @@ if __name__ == '__main__':
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run
             {
-                'simulation_name': 'all_call_against_smart_player', # name of simulation - reference for data analytics
+                'simulation_name': 'smart vs 1 all call player', # name of simulation - reference for data analytics
+                'player_types': [  # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    # AlwaysCallPlayer, # defines strategy of player 2
+                    # AlwaysCallPlayer, # defines strategy of player 3
+                    # AlwaysCallPlayer, # defines strategy of player 4
+                    # AlwaysCallPlayer, # defines strategy of player 5
+                    SmartPlayer # defines strategy of player 6
+                ]
+            },
+            {
+                'simulation_name': 'smart vs 2 all call player', # name of simulation - reference for data analytics
+                'player_types': [  # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    # AlwaysCallPlayer, # defines strategy of player 3
+                    # AlwaysCallPlayer, # defines strategy of player 4
+                    # AlwaysCallPlayer, # defines strategy of player 5
+                    SmartPlayer # defines strategy of player 6
+                ]
+            },
+            {
+                'simulation_name': 'smart vs 3 all call player', # name of simulation - reference for data analytics
+                'player_types': [  # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    # AlwaysCallPlayer, # defines strategy of player 4
+                    # AlwaysCallPlayer, # defines strategy of player 5
+                    SmartPlayer # defines strategy of player 6
+                ]
+            },
+            {
+                'simulation_name': 'smart vs 4 all call player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     AlwaysCallPlayer, # defines strategy of player 3
                     AlwaysCallPlayer, # defines strategy of player 4
-                    AlwaysCallPlayer, # defines strategy of player 5
+                    # AlwaysCallPlayer, # defines strategy of player 5
                     SmartPlayer # defines strategy of player 6
                 ]
             },
             {
-                'simulation_name': 'all_raise_against_smart_player', # name of simulation - reference for data analytics
+                'simulation_name': 'smart vs 5 all call player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
