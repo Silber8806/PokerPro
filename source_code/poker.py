@@ -1319,8 +1319,8 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 10, # number of poker tables simulated
-       'hands': 10, # number of hands the dealer will player, has to be greater than 2
+       'tables': 100, # number of poker tables simulated
+       'hands': 100, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run
