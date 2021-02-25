@@ -1352,7 +1352,7 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 100, # number of poker tables simulated
+       'tables': 10, # number of poker tables simulated
        'hands': 100, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
@@ -1360,56 +1360,56 @@ if __name__ == '__main__':
             {
                 'simulation_name': 'smart vs 1 all call player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    AlwaysCallPlayer, # defines strategy of player 1
+                    SmartPlayer, # defines strategy of player 1
                     # AlwaysCallPlayer, # defines strategy of player 2
                     # AlwaysCallPlayer, # defines strategy of player 3
                     # AlwaysCallPlayer, # defines strategy of player 4
                     # AlwaysCallPlayer, # defines strategy of player 5
-                    SmartPlayer # defines strategy of player 6
+                    AlwaysCallPlayer # defines strategy of player 6
                 ]
             },
             {
                 'simulation_name': 'smart vs 2 all call player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    AlwaysCallPlayer, # defines strategy of player 1
+                    SmartPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     # AlwaysCallPlayer, # defines strategy of player 3
                     # AlwaysCallPlayer, # defines strategy of player 4
                     # AlwaysCallPlayer, # defines strategy of player 5
-                    SmartPlayer # defines strategy of player 6
+                    AlwaysCallPlayer # defines strategy of player 6
                 ]
             },
             {
                 'simulation_name': 'smart vs 3 all call player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    AlwaysCallPlayer, # defines strategy of player 1
+                    SmartPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     AlwaysCallPlayer, # defines strategy of player 3
                     # AlwaysCallPlayer, # defines strategy of player 4
                     # AlwaysCallPlayer, # defines strategy of player 5
-                    SmartPlayer # defines strategy of player 6
+                    AlwaysCallPlayer # defines strategy of player 6
                 ]
             },
             {
                 'simulation_name': 'smart vs 4 all call player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    AlwaysCallPlayer, # defines strategy of player 1
+                    SmartPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     AlwaysCallPlayer, # defines strategy of player 3
                     AlwaysCallPlayer, # defines strategy of player 4
                     # AlwaysCallPlayer, # defines strategy of player 5
-                    SmartPlayer # defines strategy of player 6
+                    AlwaysCallPlayer # defines strategy of player 6
                 ]
             },
             {
                 'simulation_name': 'smart vs 5 all call player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    AlwaysCallPlayer, # defines strategy of player 1
+                    SmartPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     AlwaysCallPlayer, # defines strategy of player 3
                     AlwaysCallPlayer, # defines strategy of player 4
                     AlwaysCallPlayer, # defines strategy of player 5
-                    SmartPlayer # defines strategy of player 6
+                    AlwaysCallPlayer # defines strategy of player 6
                 ]
             }    
         ]
