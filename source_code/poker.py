@@ -605,6 +605,7 @@ class GenericPlayer(object):
         self.last_survivor_this_game = 0
         self.won_game = 0
         self.final_hand = None
+        self.blind_type = 'None'
 
     def register_for_game(self,game_id):
         """
@@ -625,6 +626,9 @@ class GenericPlayer(object):
     def set_final_hand(self,hand_number):
         self.final_hand = PokerInverseHierachy[hand_number]
         return None
+
+    def get_blind(self):
+        return self.blind_type
 
     def set_blind(self,blind_type=None):
         """
