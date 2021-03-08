@@ -621,6 +621,7 @@ class GenericPlayer(object):
         self.last_survivor_this_game = 0
         self.won_game = 0
         self.blind_type = 'None'
+        self.final_hand = 'None'
         return None 
 
     def set_final_hand(self,hand_number):
