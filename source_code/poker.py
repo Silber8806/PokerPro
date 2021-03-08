@@ -234,6 +234,8 @@ class FrenchDeck():
     def __str__(self):
         return "French Deck ({} of {} cards remaining)".format(len(self.cards),len(self.all_cards))
 
+simulate_win_odds_cache = {}
+
 def simulate_win_odds(cards,river,opponents,runtimes=100):
     """
         A player can use this to simulate the odds of them winning a hand of poker.
@@ -247,6 +249,13 @@ def simulate_win_odds(cards,river,opponents,runtimes=100):
 
     if river is None:
         river = []  # this is a pre-flob situation
+
+    card_cache = [c for c in sorted(cards,key=lambda c: RankMap[c.rank])]
+    river_cache = [c for c in sorted(river,key=lambda c: RankMap[c.rank])]
+    cache_key = tuple(card_cache + river_cache)
+
+    if cache_key in simulate_win_odds_cache:
+        return simulate_win_odds_cache[cache_key]
 
     for card in cards + river:
         deck.remove_card(rank=card.rank,suit=card.suit) # remove the players hand and river from the deck
@@ -278,7 +287,11 @@ def simulate_win_odds(cards,river,opponents,runtimes=100):
         deck.load_deck() # reset the deck for the next simulation
         deck.reshuffle_draw_deck()
 
-    return wins/float(runtimes) # your percent wins
+    win_rate = wins/float(runtimes)
+
+    simulate_win_odds_cache[cache_key] = win_rate
+
+    return  win_rate # your percent wins
 
 #################Shahin's addition############################################
 def is_flush(cards):
