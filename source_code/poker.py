@@ -1342,7 +1342,7 @@ def validate_config(config):
     return None
 
 def run_table_in_parallel(table_id, scenario_name,player_types,beginning_balance,minimum_play_balance,hands):
-    print("running!")
+    print("running table_id {} for scenario: {} (parallel processing)".format(table_id, scenario_name))
     casino = Table( # generates a new table
                     table_id=table_id,
                     scenario_name=scenario_name, # use this to look up scenario in data analysis
@@ -1370,8 +1370,7 @@ def run_all_simulations(config):
     # turns on pools of workers to run tables in parallel.  
     # pros/cons -> really fast 5x speed up, bad side -> really bad for debugging and seeing the simulation in action
     # pros/cons for turning off parallelism -> much slower: 1/5th the time, great for debugging and seeing the simulation in action with debug = 1 set.
-    run_tables_in_parallel = 0
-
+    
     print("beginning all simulation...")
     sim_number = 0
     for simulation in simulations: # run simluation one at a time in serial fashion
@@ -1379,7 +1378,7 @@ def run_all_simulations(config):
         print("")
         print("simulation running: {}".format(simulation['simulation_name']))
         start_time = time.time()
-        if run_tables_in_parallel == 1:
+        if use_parallel == 1:
             print("running job using parallel worker pools") 
             pool = Pool() # use multiple CPUs
             run_in_parallel=partial(
@@ -1397,7 +1396,7 @@ def run_all_simulations(config):
             print("running job in serial fashion")
             table_ids = range((sim_number-1) * tables + 1,sim_number * tables + 1)
             for table_id in table_ids:
-                dprint("simulating table: {}".format(table_id+1))
+                print("running table_id {} for scenario: {} (serial processing)".format(table_id, simulation['simulation_name']))
                 casino = Table( # generates a new table
                                 table_id=table_id,
                                 scenario_name=simulation['simulation_name'], # use this to look up scenario in data analysis
@@ -1416,10 +1415,14 @@ def run_all_simulations(config):
     print('finished all simulation')
     return None
 
-debug=0 # to see detailed messages of simulation, put this to 1, think verbose mode
+debug = 0 # to see detailed messages of simulation, put this to 1, think verbose mode
+use_parallel = 0
 
 if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
+
+    if debug == 1 and use_parallel == 1:
+        raise Exception("Parallelism (use_parallel=1) is not supported with debug mode (debug=1)...set debug to 0")
 
     # defines all the simulations we will run
     simulations = {
