@@ -785,8 +785,9 @@ class GenericPlayer(object):
         if river is not None:
             for i,card in enumerate(river):
                 river_set[i] = card
-        hand = sorted([card_to_string(card) for card in hand])
-        river_set = sorted([card_to_string(card) for card in river_set])
+        hand = [card_to_string(card) for card in sorted(hand,key=lambda c: RankMap[c.rank] if c else 99)]
+        if river_set:
+            river_set = [card_to_string(card) for card in sorted(river_set,key=lambda c: RankMap[c.rank] if c else 99)]
         data_tuple = [self.current_game, self.name, self.__class__.__name__, self.bid_number,opponents,call_bid,current_bid,self.final_bet,pot,raise_allowed] + hand + river_set
         self.hand_history.append(data_tuple)
         return None
