@@ -7,6 +7,8 @@ import random
 import collections
 import time
 from collections import Counter
+from multiprocessing import Pool
+from functools import partial
 
 # named tuple is a tuple object (immutable type) that also has names.  
 # immutable means once created they can't be modified.
@@ -22,12 +24,7 @@ PokerHierachy ={'high_card':1,'one_pair':2,'two_pair':3,'three_of_kind':4,'strai
 PokerInverseHierachy={poker_number:name for name,poker_number in PokerHierachy.items()}
 
 # the stupidest way of preserving an index, your welcome 
-global unique_table_id
-global unique_game_id
 global debug
-
-unique_table_id = 0
-unique_game_id = 0
 
 # set debug to one, to see these messages in __main__
 def dprint(message):
@@ -251,7 +248,7 @@ def simulate_win_odds(cards,river,opponents,runtimes=100):
     # bad thing about this is if you get a 1% percentile win-rate on a flop etc, than 
     # that becomes baked into simulation.  So disable cache == better results, enable
     # cache means quicker results.
-    use_cache = 1
+    use_cache = 0
 
     if river is None:
         river = []  # this is a pre-flob situation
@@ -591,8 +588,6 @@ def winning_hand(hands):
     # if 1st hand did not win return 0 else 1
     return player_scores[0]
 
-
-
 class GenericPlayer(object):
 
     """
@@ -843,10 +838,8 @@ class Game():
         Game implements an actual poker game.  It has all the mechanics to do
         pre-flob, post-flob and scoring of games.  The 
     """
-    def __init__(self,cards,players,minimum_balance_to_join):
-        global unique_game_id
-        unique_game_id = unique_game_id + 1
-        self.id = str(unique_game_id)
+    def __init__(self,game_id,cards,players,minimum_balance_to_join):
+        self.id = str(game_id)
         self.cards = cards
         self.river = cards[:5]
         self.winner = None
@@ -1057,9 +1050,7 @@ class Table():
         and than streams a set of cards, which it uses per game.  This needs to be 
         flehsed out a bit.
     """
-    def __init__(self,scenario_name,player_types,beginning_balance,minimum_play_balance,hands):
-        global unique_table_id
-        unique_table_id += 1 # global id for this table
+    def __init__(self,table_id,scenario_name,player_types,beginning_balance,minimum_play_balance,hands):
         self.scenario_name = scenario_name # what scanario it is being played under, see simulation variable
         self.player_types = player_types # player types for this game, list of class names, which are instantiatd later
         self.player_types_names = '|'.join(sorted([player_type.__name__ for player_type in self.player_types])) # names of the subclasses representing player strategy
@@ -1068,7 +1059,8 @@ class Table():
         self.min_balance = minimum_play_balance # minimum balance to join
         self.hands = hands # number of hands for this table
         self.games_played = [] # record of all games played, game id
-        self.id = str(int(unique_table_id)) # unique table id for this specific table
+        self.id = str(int(table_id)) # unique table id for this specific table
+        self.start_game_serial = int(table_id) * 1000000
 
     def add_games_played(self,game_id):
         """
@@ -1116,7 +1108,8 @@ class Table():
         self.initialize_players() # create your players
         
         for _, hand in enumerate(deck.permute(len(self.player_types) * 2 + 5,self.hands)): # start streaming 5 cards + 2 per person.  Permute means it reshuffles each time.
-            game = Game(hand,self.players,self.min_balance) # Start a new game instance with settings, this represents the actual poker game
+            self.start_game_serial += 1
+            game = Game(self.start_game_serial,hand,self.players,self.min_balance) # Start a new game instance with settings, this represents the actual poker game
             self.add_games_played(game.id) # remember to record that this game happened at this table for later analysis
             game.run_game() # start the actual simulation
             self.progress_player_turn_order() # move the turn order for players
@@ -1341,6 +1334,20 @@ def validate_config(config):
     print('finished the validation settings...')
     return None
 
+def run_table_in_parallel(table_id, scenario_name,player_types,beginning_balance,minimum_play_balance,hands):
+    print("running table_id {} for scenario: {} (parallel processing)".format(table_id, scenario_name))
+    casino = Table( # generates a new table
+                    table_id=table_id,
+                    scenario_name=scenario_name, # use this to look up scenario in data analysis
+                    player_types=player_types, # player types defined by subclassed version of GenericPlayer class
+                    beginning_balance=beginning_balance, # beginning balances of player
+                    minimum_play_balance=minimum_play_balance, # minimum balance to play
+                    hands=hands # number of hands to be played in this table
+                )
+    casino.run_simulation() # start the actual simulation
+    casino.run_analysis() # export the data for jupyter analysis at some later date
+    return None
+
 def run_all_simulations(config):
     """ 
         reads the configuration file config representing simulations to run
@@ -1353,22 +1360,44 @@ def run_all_simulations(config):
     minimum_to_play = config['minimum_balance'] # minimum balance to join next game for a given player
     simulations = config['simulations'] # all the simulations that we will run, this represents a list
 
+    # turns on pools of workers to run tables in parallel.  
+    # pros/cons -> really fast 5x speed up, bad side -> really bad for debugging and seeing the simulation in action
+    # pros/cons for turning off parallelism -> much slower: 1/5th the time, great for debugging and seeing the simulation in action with debug = 1 set.
+    
     print("beginning all simulation...")
+    sim_number = 0
     for simulation in simulations: # run simluation one at a time in serial fashion
+        sim_number += 1
         print("")
         print("simulation running: {}".format(simulation['simulation_name']))
         start_time = time.time()
-        for table in range(tables):
-            dprint("simulating table: {}".format(table+1))
-            casino = Table( # generates a new table
-                            scenario_name=simulation['simulation_name'], # use this to look up scenario in data analysis
-                            player_types=simulation['player_types'], # player types defined by subclassed version of GenericPlayer class
-                            beginning_balance=player_balance, # beginning balances of player
-                            minimum_play_balance=minimum_to_play, # minimum balance to play
-                            hands=hands # number of hands to be played in this table
-                        )
-            casino.run_simulation() # start the actual simulation
-            casino.run_analysis() # export the data for jupyter analysis at some later date
+        if use_parallel == 1:
+            pool = Pool()
+            run_in_parallel=partial(
+                        run_table_in_parallel,
+                        scenario_name=simulation['simulation_name'],
+                        player_types=simulation['player_types'],
+                        beginning_balance=player_balance,
+                        minimum_play_balance=minimum_to_play,
+                        hands=hands
+                    )
+            table_ids = range((sim_number-1) * tables + 1,sim_number * tables + 1)
+            pool.map(run_in_parallel,table_ids)
+        else:
+            print("running job in serial fashion")
+            table_ids = range((sim_number-1) * tables + 1,sim_number * tables + 1)
+            for table_id in table_ids:
+                print("running table_id {} for scenario: {} (serial processing)".format(table_id, simulation['simulation_name']))
+                casino = Table( # generates a new table
+                                table_id=table_id,
+                                scenario_name=simulation['simulation_name'], # use this to look up scenario in data analysis
+                                player_types=simulation['player_types'], # player types defined by subclassed version of GenericPlayer class
+                                beginning_balance=player_balance, # beginning balances of player
+                                minimum_play_balance=minimum_to_play, # minimum balance to play
+                                hands=hands # number of hands to be played in this table
+                            )
+                casino.run_simulation() # start the actual simulation
+                casino.run_analysis() # export the data for jupyter analysis at some later date
         end_time = time.time()
         elapsed_time = round(end_time - start_time,2)
         print("simulation finished: {} - time_required: {} seconds".format(simulation['simulation_name'],elapsed_time))
@@ -1377,14 +1406,20 @@ def run_all_simulations(config):
     print('finished all simulation')
     return None
 
-debug=0 # to see detailed messages of simulation, put this to 1, think verbose mode
+debug = 0 # to see detailed messages of simulation, put this to 1, think verbose mode
+use_parallel = 1 # would not recommend using use_cache=1 on function simulate_win_odds due to not knowing if globals are thread or process safe.
+
+# serial runs are guanteed unique repeatable results.  Parallel runs due to randomness of start times are not.  worth noting.
 
 if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
 
+    if debug == 1 and use_parallel == 1:
+        raise Exception("Parallelism (use_parallel=1) is not supported with debug mode (debug=1)...set debug to 0")
+
     # defines all the simulations we will run
     simulations = {
-       'tables': 10, # number of poker tables simulated
+       'tables': 50, # number of poker tables simulated
        'hands': 100, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
