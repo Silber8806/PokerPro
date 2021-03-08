@@ -24,12 +24,7 @@ PokerHierachy ={'high_card':1,'one_pair':2,'two_pair':3,'three_of_kind':4,'strai
 PokerInverseHierachy={poker_number:name for name,poker_number in PokerHierachy.items()}
 
 # the stupidest way of preserving an index, your welcome 
-global unique_table_id
-global unique_game_id
 global debug
-
-unique_table_id = 0
-unique_game_id = 0
 
 # set debug to one, to see these messages in __main__
 def dprint(message):
@@ -593,8 +588,6 @@ def winning_hand(hands):
     # if 1st hand did not win return 0 else 1
     return player_scores[0]
 
-
-
 class GenericPlayer(object):
 
     """
@@ -845,10 +838,8 @@ class Game():
         Game implements an actual poker game.  It has all the mechanics to do
         pre-flob, post-flob and scoring of games.  The 
     """
-    def __init__(self,cards,players,minimum_balance_to_join):
-        global unique_game_id
-        unique_game_id = unique_game_id + 1
-        self.id = str(unique_game_id)
+    def __init__(self,game_id,cards,players,minimum_balance_to_join):
+        self.id = str(game_id)
         self.cards = cards
         self.river = cards[:5]
         self.winner = None
@@ -1069,6 +1060,7 @@ class Table():
         self.hands = hands # number of hands for this table
         self.games_played = [] # record of all games played, game id
         self.id = str(int(table_id)) # unique table id for this specific table
+        self.start_game_serial = int(table_id) * 1000000
 
     def add_games_played(self,game_id):
         """
@@ -1116,7 +1108,8 @@ class Table():
         self.initialize_players() # create your players
         
         for _, hand in enumerate(deck.permute(len(self.player_types) * 2 + 5,self.hands)): # start streaming 5 cards + 2 per person.  Permute means it reshuffles each time.
-            game = Game(hand,self.players,self.min_balance) # Start a new game instance with settings, this represents the actual poker game
+            self.start_game_serial += 1
+            game = Game(self.start_game_serial,hand,self.players,self.min_balance) # Start a new game instance with settings, this represents the actual poker game
             self.add_games_played(game.id) # remember to record that this game happened at this table for later analysis
             game.run_game() # start the actual simulation
             self.progress_player_turn_order() # move the turn order for players
@@ -1379,8 +1372,7 @@ def run_all_simulations(config):
         print("simulation running: {}".format(simulation['simulation_name']))
         start_time = time.time()
         if use_parallel == 1:
-            print("running job using parallel worker pools") 
-            pool = Pool() # use multiple CPUs
+            pool = Pool()
             run_in_parallel=partial(
                         run_table_in_parallel,
                         scenario_name=simulation['simulation_name'],
@@ -1388,10 +1380,9 @@ def run_all_simulations(config):
                         beginning_balance=player_balance,
                         minimum_play_balance=minimum_to_play,
                         hands=hands
-                    ) # prod_x has only one argument x (y is fixed to 10)
+                    )
             table_ids = range((sim_number-1) * tables + 1,sim_number * tables + 1)
             pool.map(run_in_parallel,table_ids)
-            pool.close()
         else:
             print("running job in serial fashion")
             table_ids = range((sim_number-1) * tables + 1,sim_number * tables + 1)
@@ -1428,7 +1419,7 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 30, # number of poker tables simulated
+       'tables': 50, # number of poker tables simulated
        'hands': 100, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
