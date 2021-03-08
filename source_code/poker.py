@@ -1416,7 +1416,9 @@ def run_all_simulations(config):
     return None
 
 debug = 0 # to see detailed messages of simulation, put this to 1, think verbose mode
-use_parallel = 0
+use_parallel = 1 # would not recommend using use_cache=1 on function simulate_win_odds due to not knowing if globals are thread or process safe.
+
+# serial runs are guanteed unique repeatable results.  Parallel runs due to randomness of start times are not.  worth noting.
 
 if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
@@ -1426,7 +1428,7 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 10, # number of poker tables simulated
+       'tables': 50, # number of poker tables simulated
        'hands': 100, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
