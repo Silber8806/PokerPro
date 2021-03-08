@@ -941,7 +941,7 @@ class Game():
             Players can either: fold, check, call, raise or go all in.  Once the post-flop
             ends, the results are scored by the score_game method.
         """
-
+        ## why self player moves by 2, isnt that supposed to move by one ( not important for now)
         self.players = self.players[-2:] + self.players[:-2]  # handle post-flop starts at small blind by poker rules
 
         dprint("post flob bidding")
@@ -992,6 +992,7 @@ class Game():
             2. divides the pot between them
             3. any extra goes to the casino
         """
+        ## can we remove above comment and following line?
         # dumb currently, just split pot evenly until we get proper scoring hand function
         all_scored_hands = []
         for player in self.get_active_players(): # this is the actual function, still needs to be implemented
@@ -1191,6 +1192,8 @@ class Table():
 # SmartPlayer:
 # raises 10% of the time, else does a monte carlo simulation of hand and calls only if they will most likely win money.
 
+#make a conservative player that only plays if he is small or big blind. use .get_blind
+
 # Player that always calls
 class AlwaysCallPlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
@@ -1255,6 +1258,32 @@ class SmartPlayer(GenericPlayer):
         # if you statistically will make money, call the bid else just fold
         if expected_profit > 0:
             self.call_bet()
+        else:
+            self.fold_bet()
+        return None
+
+# conservative player 
+## need to check if big blind and small blind still have to pay their bid even if they fold
+class ConservativePlayer(GenericPlayer):
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        """
+            This player only plays the hand that has higher than 70% chance of winning. 
+            This player will fold if winning odd is less than 70%, call if win probability is 
+            between 70% and 80%. Raise by 20% if chance of winning is between 80% and 90%, raise by 
+            30% of its balance if chance is between 90% and 95%, raise by 50% if chance is between 
+            95% and 99% and goes all in if chance is 100%
+        """
+        win_probability = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=100)
+        if win_probability>0.7 and win_probability<=0.8:
+            self.call_bet()
+        elif  win_probability>0.8 and win_probability<=0.9:
+            self.raise_bet(round(0.2*self.balance,0))
+        elif  win_probability>0.9 and win_probability<=0.95:
+            self.raise_bet(round(0.3*self.balance,0))
+        elif  win_probability>0.95 and win_probability<=0.99:
+            self.raise_bet(round(0.3*self.balance,0))
+        elif  win_probability>0.99:
+            self.raise_bet(self.balance)
         else:
             self.fold_bet()
         return None
@@ -1417,6 +1446,17 @@ if __name__ == '__main__':
                     AlwaysCallPlayer, # defines strategy of player 3
                     AlwaysCallPlayer, # defines strategy of player 4
                     AlwaysCallPlayer, # defines strategy of player 5
+                    SmartPlayer # defines strategy of player 6
+                ]
+            },
+            {
+                'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysRaisePlayer, # defines strategy of player 2
+                    CalculatedPlayer, # defines strategy of player 3
+                    GambleByProbabilityPlayer, # defines strategy of player 4
+                    ConservativePlayer, # defines strategy of player 5
                     SmartPlayer # defines strategy of player 6
                 ]
             }    
