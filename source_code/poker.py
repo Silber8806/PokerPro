@@ -7,6 +7,8 @@ import random
 import collections
 import time
 from collections import Counter
+from multiprocessing import Pool
+from functools import partial
 
 # named tuple is a tuple object (immutable type) that also has names.  
 # immutable means once created they can't be modified.
@@ -251,7 +253,7 @@ def simulate_win_odds(cards,river,opponents,runtimes=100):
     # bad thing about this is if you get a 1% percentile win-rate on a flop etc, than 
     # that becomes baked into simulation.  So disable cache == better results, enable
     # cache means quicker results.
-    use_cache = 1
+    use_cache = 0
 
     if river is None:
         river = []  # this is a pre-flob situation
@@ -1057,9 +1059,7 @@ class Table():
         and than streams a set of cards, which it uses per game.  This needs to be 
         flehsed out a bit.
     """
-    def __init__(self,scenario_name,player_types,beginning_balance,minimum_play_balance,hands):
-        global unique_table_id
-        unique_table_id += 1 # global id for this table
+    def __init__(self,table_id,scenario_name,player_types,beginning_balance,minimum_play_balance,hands):
         self.scenario_name = scenario_name # what scanario it is being played under, see simulation variable
         self.player_types = player_types # player types for this game, list of class names, which are instantiatd later
         self.player_types_names = '|'.join(sorted([player_type.__name__ for player_type in self.player_types])) # names of the subclasses representing player strategy
@@ -1068,7 +1068,7 @@ class Table():
         self.min_balance = minimum_play_balance # minimum balance to join
         self.hands = hands # number of hands for this table
         self.games_played = [] # record of all games played, game id
-        self.id = str(int(unique_table_id)) # unique table id for this specific table
+        self.id = str(int(table_id)) # unique table id for this specific table
 
     def add_games_played(self,game_id):
         """
@@ -1341,6 +1341,20 @@ def validate_config(config):
     print('finished the validation settings...')
     return None
 
+def run_table_in_parallel(table_id, scenario_name,player_types,beginning_balance,minimum_play_balance,hands):
+    print("running!")
+    casino = Table( # generates a new table
+                    table_id=table_id,
+                    scenario_name=scenario_name, # use this to look up scenario in data analysis
+                    player_types=player_types, # player types defined by subclassed version of GenericPlayer class
+                    beginning_balance=beginning_balance, # beginning balances of player
+                    minimum_play_balance=minimum_play_balance, # minimum balance to play
+                    hands=hands # number of hands to be played in this table
+                )
+    casino.run_simulation() # start the actual simulation
+    casino.run_analysis() # export the data for jupyter analysis at some later date
+    return None
+
 def run_all_simulations(config):
     """ 
         reads the configuration file config representing simulations to run
@@ -1353,22 +1367,47 @@ def run_all_simulations(config):
     minimum_to_play = config['minimum_balance'] # minimum balance to join next game for a given player
     simulations = config['simulations'] # all the simulations that we will run, this represents a list
 
+    # turns on pools of workers to run tables in parallel.  
+    # pros/cons -> really fast 5x speed up, bad side -> really bad for debugging and seeing the simulation in action
+    # pros/cons for turning off parallelism -> much slower: 1/5th the time, great for debugging and seeing the simulation in action with debug = 1 set.
+    run_tables_in_parallel = 0
+
     print("beginning all simulation...")
+    sim_number = 0
     for simulation in simulations: # run simluation one at a time in serial fashion
+        sim_number += 1
         print("")
         print("simulation running: {}".format(simulation['simulation_name']))
         start_time = time.time()
-        for table in range(tables):
-            dprint("simulating table: {}".format(table+1))
-            casino = Table( # generates a new table
-                            scenario_name=simulation['simulation_name'], # use this to look up scenario in data analysis
-                            player_types=simulation['player_types'], # player types defined by subclassed version of GenericPlayer class
-                            beginning_balance=player_balance, # beginning balances of player
-                            minimum_play_balance=minimum_to_play, # minimum balance to play
-                            hands=hands # number of hands to be played in this table
-                        )
-            casino.run_simulation() # start the actual simulation
-            casino.run_analysis() # export the data for jupyter analysis at some later date
+        if run_tables_in_parallel == 1:
+            print("running job using parallel worker pools") 
+            pool = Pool() # use multiple CPUs
+            run_in_parallel=partial(
+                        run_table_in_parallel,
+                        scenario_name=simulation['simulation_name'],
+                        player_types=simulation['player_types'],
+                        beginning_balance=player_balance,
+                        minimum_play_balance=minimum_to_play,
+                        hands=hands
+                    ) # prod_x has only one argument x (y is fixed to 10)
+            table_ids = range((sim_number-1) * tables + 1,sim_number * tables + 1)
+            pool.map(run_in_parallel,table_ids)
+            pool.close()
+        else:
+            print("running job in serial fashion")
+            table_ids = range((sim_number-1) * tables + 1,sim_number * tables + 1)
+            for table_id in table_ids:
+                dprint("simulating table: {}".format(table_id+1))
+                casino = Table( # generates a new table
+                                table_id=table_id,
+                                scenario_name=simulation['simulation_name'], # use this to look up scenario in data analysis
+                                player_types=simulation['player_types'], # player types defined by subclassed version of GenericPlayer class
+                                beginning_balance=player_balance, # beginning balances of player
+                                minimum_play_balance=minimum_to_play, # minimum balance to play
+                                hands=hands # number of hands to be played in this table
+                            )
+                casino.run_simulation() # start the actual simulation
+                casino.run_analysis() # export the data for jupyter analysis at some later date
         end_time = time.time()
         elapsed_time = round(end_time - start_time,2)
         print("simulation finished: {} - time_required: {} seconds".format(simulation['simulation_name'],elapsed_time))
