@@ -1,0 +1,2 @@
+table_id,scenario_name,player_types
+37,smart vs 4 all call player,AlwaysCallPlayer|AlwaysCallPlayer|AlwaysCallPlayer|AlwaysCallPlayer|SmartPlayer
