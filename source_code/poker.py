@@ -1248,7 +1248,7 @@ class ConservativePlayer(GenericPlayer):
             30% of its balance if chance is between 90% and 95%, raise by 50% if chance is between 
             95% and 99% and goes all in if chance is 100%
         """
-        win_probability = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=100)
+        win_probability = simulate_win_odds(cards=hand,river=river,opponents=2,runtimes=100)
         if win_probability>0.5 and win_probability<=0.7:
             self.call_bet()
         elif  win_probability>0.7 and win_probability<=0.9:
