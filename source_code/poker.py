@@ -1237,9 +1237,30 @@ class GambleByProbabilityPlayer(GenericPlayer):
             self.fold_bet()
         return None
 
+# conservative player 
+## need to check if big blind and small blind still have to pay their bid even if they fold
 class ConservativePlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
-        self.call_bet()
+        """
+            This player only plays the hand that has higher than 70% chance of winning. 
+            This player will fold if winning odd is less than 70%, call if win probability is 
+            between 70% and 80%. Raise by 20% if chance of winning is between 80% and 90%, raise by 
+            30% of its balance if chance is between 90% and 95%, raise by 50% if chance is between 
+            95% and 99% and goes all in if chance is 100%
+        """
+        win_probability = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=100)
+        if win_probability>0.5 and win_probability<=0.7:
+            self.call_bet()
+        elif  win_probability>0.7 and win_probability<=0.9:
+            self.raise_bet(round(0.2*self.balance,0))
+        elif  win_probability>0.9 and win_probability<=0.95:
+            self.raise_bet(round(0.3*self.balance,0))
+        elif  win_probability>0.95 and win_probability<=0.99:
+            self.raise_bet(round(0.3*self.balance,0))
+        elif  win_probability>0.99:
+            self.raise_bet(self.balance)
+        else:
+            self.fold_bet()
         return None
 
 # sophisticated player with more complicated strategy.
@@ -1419,7 +1440,7 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 50, # number of poker tables simulated
+       'tables': 100, # number of poker tables simulated
        'hands': 100, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
@@ -1533,7 +1554,18 @@ if __name__ == '__main__':
                     AlwaysCallPlayer, # defines strategy of player 5
                     AlwaysCallPlayer # defines strategy of player 6
                 ]
-            } 
+            },
+            {
+                'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysRaisePlayer, # defines strategy of player 2
+                    CalculatedPlayer, # defines strategy of player 3
+                    GambleByProbabilityPlayer, # defines strategy of player 4
+                    ConservativePlayer, # defines strategy of player 5
+                    SmartPlayer # defines strategy of player 6
+                ]
+            }    
         ]
     }
 
