@@ -1260,13 +1260,13 @@ class ConservativePlayer(GenericPlayer):
         if win_probability>0.5 and win_probability<=0.7:
             self.call_bet()
         elif  win_probability>0.7 and win_probability<=0.9:
-            self.raise_bet(round(0.001*self.balance,0))
-        elif  win_probability>0.9 and win_probability<=0.95:
-            self.raise_bet(round(0.002*self.balance,0))
-        elif  win_probability>0.95 and win_probability<=0.99:
-            self.raise_bet(round(0.005*self.balance,0))
-        elif  win_probability>0.99:
             self.raise_bet(round(0.01*self.balance,0))
+        elif  win_probability>0.9 and win_probability<=0.95:
+            self.raise_bet(round(0.02*self.balance,0))
+        elif  win_probability>0.95 and win_probability<=0.99:
+            self.raise_bet(round(0.05*self.balance,0))
+        elif  win_probability>0.99:
+            self.raise_bet(round(0.1*self.balance,0))
         else:
             self.fold_bet()
         return None
@@ -1456,8 +1456,8 @@ if __name__ == '__main__':
             {
                 'simulation_name': 'smart vs 1 all call player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
+                    SmartPlayer, # defines strategy of player 1
+                    # AlwaysCallPlayer, # defines strategy of player 2
                     # AlwaysCallPlayer, # defines strategy of player 3
                     # AlwaysCallPlayer, # defines strategy of player 4
                     # AlwaysCallPlayer, # defines strategy of player 5
@@ -1467,7 +1467,7 @@ if __name__ == '__main__':
             {
                 'simulation_name': 'smart vs 2 all call player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
+                    SmartPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     # AlwaysCallPlayer, # defines strategy of player 3
                     # AlwaysCallPlayer, # defines strategy of player 4
@@ -1478,7 +1478,7 @@ if __name__ == '__main__':
             {
                 'simulation_name': 'smart vs 3 all call player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
+                    SmartPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     AlwaysCallPlayer, # defines strategy of player 3
                     # AlwaysCallPlayer, # defines strategy of player 4
@@ -1489,7 +1489,7 @@ if __name__ == '__main__':
             {
                 'simulation_name': 'smart vs 4 all call player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
+                    SmartPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     AlwaysCallPlayer, # defines strategy of player 3
                     AlwaysCallPlayer, # defines strategy of player 4
@@ -1500,7 +1500,7 @@ if __name__ == '__main__':
             {
                 'simulation_name': 'smart vs 5 all call player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
+                    SmartPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     AlwaysCallPlayer, # defines strategy of player 3
                     AlwaysCallPlayer, # defines strategy of player 4
@@ -1511,7 +1511,7 @@ if __name__ == '__main__':
             {
                 'simulation_name': 'conservative vs 1 all call player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
+                    ConservativePlayer, # defines strategy of player 1
                     # AlwaysCallPlayer, # defines strategy of player 2
                     # AlwaysCallPlayer, # defines strategy of player 3
                     # AlwaysCallPlayer, # defines strategy of player 4
@@ -1522,7 +1522,7 @@ if __name__ == '__main__':
             {
                 'simulation_name': 'conservative vs 2 all call player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
+                    ConservativePlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     # AlwaysCallPlayer, # defines strategy of player 3
                     # AlwaysCallPlayer, # defines strategy of player 4
@@ -1533,7 +1533,7 @@ if __name__ == '__main__':
             {
                 'simulation_name': 'conservative vs 3 all call player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
+                    ConservativePlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     AlwaysCallPlayer, # defines strategy of player 3
                     # AlwaysCallPlayer, # defines strategy of player 4
@@ -1544,7 +1544,7 @@ if __name__ == '__main__':
             {
                 'simulation_name': 'conservative vs 4 all call player', # name of simulation - reference for data analytics
                 'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
+                    ConservativePlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     AlwaysCallPlayer, # defines strategy of player 3
                     AlwaysCallPlayer, # defines strategy of player 4
@@ -1555,7 +1555,7 @@ if __name__ == '__main__':
             {
                 'simulation_name': 'conservative vs 5 all call player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
+                    ConservativePlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     AlwaysCallPlayer, # defines strategy of player 3
                     AlwaysCallPlayer, # defines strategy of player 4
