@@ -1,2 +1,0 @@
-table_id,scenario_name,player_types
-53,smart vs 5 all different types player,AlwaysCallPlayer|AlwaysRaisePlayer|CalculatedPlayer|ConservativePlayer|GambleByProbabilityPlayer|SmartPlayer

@@ -1274,9 +1274,9 @@ class ConservativePlayer(GenericPlayer):
             95% and 99% and goes all in if chance is 100%
         """
         win_probability = simulate_win_odds(cards=hand,river=river,opponents=opponents,runtimes=100)
-        if win_probability>0.7 and win_probability<=0.8:
+        if win_probability>0.5 and win_probability<=0.7:
             self.call_bet()
-        elif  win_probability>0.8 and win_probability<=0.9:
+        elif  win_probability>0.7 and win_probability<=0.9:
             self.raise_bet(round(0.2*self.balance,0))
         elif  win_probability>0.9 and win_probability<=0.95:
             self.raise_bet(round(0.3*self.balance,0))
@@ -1389,8 +1389,8 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 100, # number of poker tables simulated
-       'hands': 100, # number of hands the dealer will player, has to be greater than 2
+       'tables': 10, # number of poker tables simulated
+       'hands': 10, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run
