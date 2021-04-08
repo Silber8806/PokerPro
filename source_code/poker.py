@@ -1252,13 +1252,13 @@ class ConservativePlayer(GenericPlayer):
         if win_probability>0.5 and win_probability<=0.7:
             self.call_bet()
         elif  win_probability>0.7 and win_probability<=0.9:
-            self.raise_bet(round(0.2*self.balance,0))
+            self.raise_bet(round(0.01*self.balance,0))
         elif  win_probability>0.9 and win_probability<=0.95:
-            self.raise_bet(round(0.3*self.balance,0))
+            self.raise_bet(round(0.03*self.balance,0))
         elif  win_probability>0.95 and win_probability<=0.99:
-            self.raise_bet(round(0.3*self.balance,0))
+            self.raise_bet(round(0.05*self.balance,0))
         elif  win_probability>0.99:
-            self.raise_bet(self.balance)
+            self.raise_bet(0.1*self.balance)
         else:
             self.fold_bet()
         return None
@@ -1440,121 +1440,17 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 100, # number of poker tables simulated
+       'tables': 30, # number of poker tables simulated
        'hands': 100, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run
-            {
-                'simulation_name': 'smart vs 1 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
-                    # AlwaysCallPlayer, # defines strategy of player 2
-                    # AlwaysCallPlayer, # defines strategy of player 3
-                    # AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'smart vs 2 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    # AlwaysCallPlayer, # defines strategy of player 3
-                    # AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'smart vs 3 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    # AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'smart vs 4 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'smart vs 5 all call player', # name of simulation - reference for data analytics
-                'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    AlwaysCallPlayer, # defines strategy of player 4
-                    AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'conservative vs 1 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
-                    # AlwaysCallPlayer, # defines strategy of player 2
-                    # AlwaysCallPlayer, # defines strategy of player 3
-                    # AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'conservative vs 2 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    # AlwaysCallPlayer, # defines strategy of player 3
-                    # AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'conservative vs 3 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    # AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'conservative vs 4 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'conservative vs 5 all call player', # name of simulation - reference for data analytics
-                'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    AlwaysCallPlayer, # defines strategy of player 4
-                    AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
+                    
+           
+            
+           
+            
+            
             {
                 'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
