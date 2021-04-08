@@ -622,19 +622,15 @@ class GenericPlayer(object):
         self.won_game = 0
         self.final_hand = None
         self.blind_type = 'None'
-        self.current_game = None
-        self.active_game = None
 
-    def register_for_game(self,game):
+    def register_for_game(self,game_id):
         """
             Register a player for a game, making sure that a lot of attributes
             that keep track of state are reinitialized.  A lot of these attributes
             are used for reporting purposes later on.
         """
-        game_id = game.id
         self.games_played.append(game_id)
         self.current_game = game_id
-        self.active_game = game
         self.bid_number = 0
         self.registered_balance = self.balance
         self.folded_this_game = 0
@@ -852,10 +848,9 @@ class Game():
         # you need a minimum balance otherwise, players with $0 will join your game.
         self.minumum = minimum_balance_to_join
         self.players = [{"player": player, "active": 1, "hand": None, "bet": 0} for player in players if player.balance > self.minumum] # get rid of losers that don't have enough money
-        self.player_actions = []
 
         for player in players:
-            player.register_for_game(self) # get the unique memory id for the game
+            player.register_for_game(self.id) # get the unique memory id for the game
 
         # every poker game has a small and big blind to prevent people from always folding unless they have pocket aces.
         self.players_left_at_start = len(self.players)
@@ -909,18 +904,6 @@ class Game():
         else:
             return False
 
-    def update_player_actions(self,round_name,player_name,action,bid):
-        """ 
-            Keep player history so that you can look it up for strategies for example
-            MCTS simulations etc.
-        """
-        update_tup = (round_name,player_name,action,bid)
-        self.player_actions.append(update_tup)
-        return None
-
-    def get_player_actions(self):
-        return self.player_actions
-
     def pre_flop(self):
         """
             This is actually part of the game.  The way it works is that each player gets 
@@ -937,7 +920,6 @@ class Game():
         current_river = None
 
         for turn in range(1,4):  # limited texas hold-em has 3 rounds max
-            round_name = 'pre_flop_' + str(turn)
             dprint("pre-bid round: {}".format(turn))
             for player in self.get_active_players():  # always remove those people that folded from turnss
                 agent = player['player'] # get player object for method calls
@@ -951,11 +933,8 @@ class Game():
                 dprint("current {} for {}".format(bid,player['player']))
                 if bid is None:  # if the player folded...than return None, they no longer have a bid
                     player['active'] = 0 
-                    self.update_actions(round_name,player.name,'fold',0)
                 else:
                     player['bet'] = bid # if they returned a bid, use it here.
-                    player_bid = current_bid - required_bid
-                    self.update_player_actions(round_name,player.name,'bid',player_bid)
 
             opponents_left = self.get_num_active_opponents()
             if (opponents_left == 0):  # if 1 player is left quit bidding
@@ -987,7 +966,6 @@ class Game():
             dprint("starting river turn: {}".format(turn))
             dprint("current community/river is: {}".format(current_river))
             for bidding_round in range(1,4):  # here we start the 3 bidding rounds
-                round_name = 'pos_flop_card_' + str(turn) + '_bid_round_' + str(bidding_round)
                 dprint("bidding round is: {}".format(bidding_round))
                 for player in self.get_active_players():  # only players that did not fold can play
                     agent = player['player'] # get player method for agent calls
@@ -1001,11 +979,8 @@ class Game():
                     dprint("current {} for {}".format(bid,player['player']))
                     if bid is None:
                         player['active'] = 0 # if the player folds, he leaves the game
-                        self.update_actions(round_name,player.name,'fold',0)
                     else:
                         player['bet'] = bid # if he makes a bet, it becomes his new bet
-                        player_bid = current_bid - required_bid
-                        self.update_player_actions(round_name,player.name,'bid',player_bid)
 
                 opponents_left = self.get_num_active_opponents()
                 if (opponents_left == 0): # if 1 player is left finish the current bidding round
@@ -1275,11 +1250,11 @@ class GambleByProbabilityPlayer(GenericPlayer):
 class ConservativePlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         """
-            This player only plays the hand that has higher than 70% chance of winning. 
-            This player will fold if winning odd is less than 70%, call if win probability is 
-            between 70% and 80%. Raise by 20% if chance of winning is between 80% and 90%, raise by 
-            30% of its balance if chance is between 90% and 95%, raise by 50% if chance is between 
-            95% and 99% and goes all in if chance is 100%
+        This player only plays the hand that has higher than 70% chance of winning. 
+        This player will fold if winning odd is less than 70%, call if win probability is 
+        between 70% and 80%. Raise by 20% if chance of winning is between 80% and 90%, raise by 
+        30% of its balance if chance is between 90% and 95%, raise by 50% if chance is between 
+        95% and 99% and goes all in if chance is 100%
         """
         win_probability = simulate_win_odds(cards=hand,river=river,opponents=2,runtimes=100)
         if win_probability>0.5 and win_probability<=0.7:
@@ -1473,132 +1448,28 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 30, # number of poker tables simulated
-       'hands': 100, # number of hands the dealer will player, has to be greater than 2
+       'tables': 3, # number of poker tables simulated
+       'hands': 10, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run
+                    
+           
+            
+           
+            
+            
             {
-                'simulation_name': 'smart vs 1 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
-                    # AlwaysCallPlayer, # defines strategy of player 2
-                    # AlwaysCallPlayer, # defines strategy of player 3
-                    # AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'smart vs 2 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    # AlwaysCallPlayer, # defines strategy of player 3
-                    # AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'smart vs 3 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    # AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'smart vs 4 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'smart vs 5 all call player', # name of simulation - reference for data analytics
+                'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    SmartPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    AlwaysCallPlayer, # defines strategy of player 4
-                    AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysRaisePlayer, # defines strategy of player 2
+                    #CalculatedPlayer, # defines strategy of player 3
+                    #GambleByProbabilityPlayer, # defines strategy of player 4
+                    #ConservativePlayer, # defines strategy of player 5
+                    #SmartPlayer # defines strategy of player 6
                 ]
-            },
-            {
-                'simulation_name': 'conservative vs 1 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
-                    # AlwaysCallPlayer, # defines strategy of player 2
-                    # AlwaysCallPlayer, # defines strategy of player 3
-                    # AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'conservative vs 2 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    # AlwaysCallPlayer, # defines strategy of player 3
-                    # AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'conservative vs 3 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    # AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'conservative vs 4 all call player', # name of simulation - reference for data analytics
-                'player_types': [  # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    AlwaysCallPlayer, # defines strategy of player 4
-                    # AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            },
-            {
-                'simulation_name': 'conservative vs 5 all call player', # name of simulation - reference for data analytics
-                'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    ConservativePlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    AlwaysCallPlayer, # defines strategy of player 4
-                    AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer # defines strategy of player 6
-                ]
-            }#,
-            # {
-            #     'simulation_name': 'free for all scenario', # name of simulation - reference for data analytics
-            #     'player_types': [ # type of players, see the subclasses of GenericPlayer
-            #         AlwaysCallPlayer, # defines strategy of player 1
-            #         AlwaysRaisePlayer, # defines strategy of player 2
-            #         CalculatedPlayer, # defines strategy of player 3
-            #         GambleByProbabilityPlayer, # defines strategy of player 4
-            #         ConservativePlayer, # defines strategy of player 5
-            #         SmartPlayer # defines strategy of player 6
-            #     ]
-            # }    
+            }    
         ]
     }
 
