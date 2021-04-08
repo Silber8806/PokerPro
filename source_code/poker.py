@@ -622,15 +622,19 @@ class GenericPlayer(object):
         self.won_game = 0
         self.final_hand = None
         self.blind_type = 'None'
+        self.current_game = None
+        self.active_game = None
 
-    def register_for_game(self,game_id):
+    def register_for_game(self,game):
         """
             Register a player for a game, making sure that a lot of attributes
             that keep track of state are reinitialized.  A lot of these attributes
             are used for reporting purposes later on.
         """
+        game_id = game.id
         self.games_played.append(game_id)
         self.current_game = game_id
+        self.active_game = game
         self.bid_number = 0
         self.registered_balance = self.balance
         self.folded_this_game = 0
@@ -848,9 +852,10 @@ class Game():
         # you need a minimum balance otherwise, players with $0 will join your game.
         self.minumum = minimum_balance_to_join
         self.players = [{"player": player, "active": 1, "hand": None, "bet": 0} for player in players if player.balance > self.minumum] # get rid of losers that don't have enough money
+        self.player_actions = []
 
         for player in players:
-            player.register_for_game(self.id) # get the unique memory id for the game
+            player.register_for_game(self) # get the unique memory id for the game
 
         # every poker game has a small and big blind to prevent people from always folding unless they have pocket aces.
         self.players_left_at_start = len(self.players)
@@ -904,6 +909,18 @@ class Game():
         else:
             return False
 
+    def update_player_actions(self,round_name,player_name,action,bid):
+        """ 
+            Keep player history so that you can look it up for strategies for example
+            MCTS simulations etc.
+        """
+        update_tup = (round_name,player_name,action,bid)
+        self.player_actions.append(update_tup)
+        return None
+
+    def get_player_actions(self):
+        return self.player_actions
+
     def pre_flop(self):
         """
             This is actually part of the game.  The way it works is that each player gets 
@@ -920,6 +937,7 @@ class Game():
         current_river = None
 
         for turn in range(1,4):  # limited texas hold-em has 3 rounds max
+            round_name = 'pre_flop_' + str(turn)
             dprint("pre-bid round: {}".format(turn))
             for player in self.get_active_players():  # always remove those people that folded from turnss
                 agent = player['player'] # get player object for method calls
@@ -933,8 +951,11 @@ class Game():
                 dprint("current {} for {}".format(bid,player['player']))
                 if bid is None:  # if the player folded...than return None, they no longer have a bid
                     player['active'] = 0 
+                    self.update_actions(round_name,player.name,'fold',0)
                 else:
                     player['bet'] = bid # if they returned a bid, use it here.
+                    player_bid = current_bid - required_bid
+                    self.update_player_actions(round_name,player.name,'bid',player_bid)
 
             opponents_left = self.get_num_active_opponents()
             if (opponents_left == 0):  # if 1 player is left quit bidding
@@ -966,6 +987,7 @@ class Game():
             dprint("starting river turn: {}".format(turn))
             dprint("current community/river is: {}".format(current_river))
             for bidding_round in range(1,4):  # here we start the 3 bidding rounds
+                round_name = 'pos_flop_card_' + str(turn) + '_bid_round_' + str(bidding_round)
                 dprint("bidding round is: {}".format(bidding_round))
                 for player in self.get_active_players():  # only players that did not fold can play
                     agent = player['player'] # get player method for agent calls
@@ -979,8 +1001,11 @@ class Game():
                     dprint("current {} for {}".format(bid,player['player']))
                     if bid is None:
                         player['active'] = 0 # if the player folds, he leaves the game
+                        self.update_actions(round_name,player.name,'fold',0)
                     else:
                         player['bet'] = bid # if he makes a bet, it becomes his new bet
+                        player_bid = current_bid - required_bid
+                        self.update_player_actions(round_name,player.name,'bid',player_bid)
 
                 opponents_left = self.get_num_active_opponents()
                 if (opponents_left == 0): # if 1 player is left finish the current bidding round
