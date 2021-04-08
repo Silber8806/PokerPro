@@ -703,6 +703,12 @@ class GenericPlayer(object):
         else:
             self.balance = self.balance - pay_bid
 
+    def get_all_player_actions(self):
+        if self.active_game is None:
+            raise Exception("Can't access player history of non-existent game")
+        
+        return self.active_game.get_player_actions()
+
     def _set_up_bet(self,opponents,call_bid,current_bid,raise_allowed=False):
         """
             sets up some basic context for a betting round.  Used by make_bet
@@ -816,7 +822,7 @@ class GenericPlayer(object):
         """
             This is a method that checks if the player is the last man standing.  If he 
             is, automatically wins the round.  If he is not, it calls self.bet_strategy, 
-            which is not part of GenericPlayer, but is instead used by subclasses of the
+            which is not part of GenericPlayer, but is instfead used by subclasses of the
             player to implement custom strategies.  record_bet made after bet_strategy
             records the hand.  Don't manipulate this, instead inherit from this class
             and make your own strategy using a bet_strategy method.  Think of this 
@@ -951,11 +957,11 @@ class Game():
                 dprint("current {} for {}".format(bid,player['player']))
                 if bid is None:  # if the player folded...than return None, they no longer have a bid
                     player['active'] = 0 
-                    self.update_actions(round_name,player.name,'fold',0)
+                    self.update_actions(round_name,agent.name,'fold',0)
                 else:
                     player['bet'] = bid # if they returned a bid, use it here.
                     player_bid = current_bid - required_bid
-                    self.update_player_actions(round_name,player.name,'bid',player_bid)
+                    self.update_player_actions(round_name,agent.name,'bid',player_bid)
 
             opponents_left = self.get_num_active_opponents()
             if (opponents_left == 0):  # if 1 player is left quit bidding
@@ -1001,11 +1007,11 @@ class Game():
                     dprint("current {} for {}".format(bid,player['player']))
                     if bid is None:
                         player['active'] = 0 # if the player folds, he leaves the game
-                        self.update_actions(round_name,player.name,'fold',0)
+                        self.update_actions(round_name,agent.name,'fold',0)
                     else:
                         player['bet'] = bid # if he makes a bet, it becomes his new bet
                         player_bid = current_bid - required_bid
-                        self.update_player_actions(round_name,player.name,'bid',player_bid)
+                        self.update_player_actions(round_name,agent.name,'bid',player_bid)
 
                 opponents_left = self.get_num_active_opponents()
                 if (opponents_left == 0): # if 1 player is left finish the current bidding round
@@ -1330,6 +1336,11 @@ class SmartPlayer(GenericPlayer):
             self.fold_bet()
         return None
 
+class MonteCarloTreeSearchPlayer(GenericPlayer):
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        self.call_bet()
+        return None
+
 def validate_config(config):
     """
         Checks the config for errors, quiet extensive.
@@ -1461,7 +1472,7 @@ def run_all_simulations(config):
     return None
 
 debug = 0 # to see detailed messages of simulation, put this to 1, think verbose mode
-use_parallel = 1 # would not recommend using use_cache=1 on function simulate_win_odds due to not knowing if globals are thread or process safe.
+use_parallel = 0 # would not recommend using use_cache=1 on function simulate_win_odds due to not knowing if globals are thread or process safe.
 
 # serial runs are guanteed unique repeatable results.  Parallel runs due to randomness of start times are not.  worth noting.
 
@@ -1478,17 +1489,11 @@ if __name__ == '__main__':
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run
-                    
-           
-            
-           
-            
-            
             {
                 'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysRaisePlayer, # defines strategy of player 2
+                    MonteCarloTreeSearchPlayer, # defines strategy of player 2
                     #CalculatedPlayer, # defines strategy of player 3
                     #GambleByProbabilityPlayer, # defines strategy of player 4
                     #ConservativePlayer, # defines strategy of player 5
