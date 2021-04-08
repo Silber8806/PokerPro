@@ -853,12 +853,15 @@ class Game():
             player.register_for_game(self.id) # get the unique memory id for the game
 
         # every poker game has a small and big blind to prevent people from always folding unless they have pocket aces.
-        self.players[-1]['bet'] = self.big_blind
-        self.players[-1]['player'].pay_bid(self.big_blind)
-        self.players[-1]['player'].set_blind('big')
-        self.players[-2]['bet'] = self.small_blind 
-        self.players[-2]['player'].pay_bid(self.small_blind)
-        self.players[-2]['player'].set_blind('small')
+        self.players_left_at_start = len(self.players)
+
+        if self.players_left_at_start > 1:
+            self.players[-1]['bet'] = self.big_blind
+            self.players[-1]['player'].pay_bid(self.big_blind)
+            self.players[-1]['player'].set_blind('big')
+            self.players[-2]['bet'] = self.small_blind 
+            self.players[-2]['player'].pay_bid(self.small_blind)
+            self.players[-2]['player'].set_blind('small')
         
     def get_current_pot(self):
         """
@@ -1034,6 +1037,11 @@ class Game():
         """
         dprint("")
         dprint("start game")
+
+        if self.players_left_at_start < 2:
+            dprint("skipping game since no players left to play: {}".format(self.id))
+            return None
+
         self.pre_flop()
         self.post_flop() # re-working post_flop
         self.score_game() # re-working score game
@@ -1242,11 +1250,11 @@ class GambleByProbabilityPlayer(GenericPlayer):
 class ConservativePlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         """
-            This player only plays the hand that has higher than 70% chance of winning. 
-            This player will fold if winning odd is less than 70%, call if win probability is 
-            between 70% and 80%. Raise by 20% if chance of winning is between 80% and 90%, raise by 
-            30% of its balance if chance is between 90% and 95%, raise by 50% if chance is between 
-            95% and 99% and goes all in if chance is 100%
+        This player only plays the hand that has higher than 70% chance of winning. 
+        This player will fold if winning odd is less than 70%, call if win probability is 
+        between 70% and 80%. Raise by 20% if chance of winning is between 80% and 90%, raise by 
+        30% of its balance if chance is between 90% and 95%, raise by 50% if chance is between 
+        95% and 99% and goes all in if chance is 100%
         """
         win_probability = simulate_win_odds(cards=hand,river=river,opponents=2,runtimes=100)
         if win_probability>0.5 and win_probability<=0.7:
@@ -1254,11 +1262,11 @@ class ConservativePlayer(GenericPlayer):
         elif  win_probability>0.7 and win_probability<=0.9:
             self.raise_bet(round(0.01*self.balance,0))
         elif  win_probability>0.9 and win_probability<=0.95:
-            self.raise_bet(round(0.03*self.balance,0))
+            self.raise_bet(round(0.02*self.balance,0))
         elif  win_probability>0.95 and win_probability<=0.99:
             self.raise_bet(round(0.05*self.balance,0))
         elif  win_probability>0.99:
-            self.raise_bet(0.1*self.balance)
+            self.raise_bet(round(0.1*self.balance,0))
         else:
             self.fold_bet()
         return None
@@ -1440,8 +1448,8 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 30, # number of poker tables simulated
-       'hands': 100, # number of hands the dealer will player, has to be greater than 2
+       'tables': 3, # number of poker tables simulated
+       'hands': 10, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run
@@ -1456,10 +1464,10 @@ if __name__ == '__main__':
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
                     AlwaysRaisePlayer, # defines strategy of player 2
-                    CalculatedPlayer, # defines strategy of player 3
-                    GambleByProbabilityPlayer, # defines strategy of player 4
-                    ConservativePlayer, # defines strategy of player 5
-                    SmartPlayer # defines strategy of player 6
+                    #CalculatedPlayer, # defines strategy of player 3
+                    #GambleByProbabilityPlayer, # defines strategy of player 4
+                    #ConservativePlayer, # defines strategy of player 5
+                    #SmartPlayer # defines strategy of player 6
                 ]
             }    
         ]
