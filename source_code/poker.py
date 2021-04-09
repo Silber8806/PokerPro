@@ -46,6 +46,22 @@ def card_to_string(card):
     else:
         return 'Z-N/A'
 
+def card_reduced_set(cards):
+    if len(cards) != 2:
+        raise Exception("Only 2 cards can be scored")
+    card1, card2 = cards 
+
+    if card1.suit == card2.suit:
+        card_suited = "Same"
+    else:
+        card_suited = "Diff"
+
+    sorted_ranks = sorted([card1.rank, card2.rank],key=lambda card: RankMap[card])
+    sorted_ranks.append(card_suited)
+
+    return sorted_ranks
+
+
 # used to take a list and chunk it into a list of n-tuples
 # found this on stackoverflow for chunking lists and used
 # directly for that puporse.
@@ -624,6 +640,7 @@ class GenericPlayer(object):
         self.blind_type = 'None'
         self.current_game = None
         self.active_game = None
+        self.pre_flob_wins = {}
 
     def register_for_game(self,game):
         """
@@ -915,12 +932,12 @@ class Game():
         else:
             return False
 
-    def update_player_actions(self,round_name,player_name,action,bid):
+    def update_player_actions(self,player_name,hand,river,action,bid):
         """ 
             Keep player history so that you can look it up for strategies for example
             MCTS simulations etc.
         """
-        update_tup = (round_name,player_name,action,bid)
+        update_tup = (player_name,hand,river,action,bid)
         self.player_actions.append(update_tup)
         return None
 
@@ -957,11 +974,12 @@ class Game():
                 dprint("current {} for {}".format(bid,player['player']))
                 if bid is None:  # if the player folded...than return None, they no longer have a bid
                     player['active'] = 0 
-                    self.update_actions(round_name,agent.name,'fold',0)
+                    final_action = 'fold'
                 else:
                     player['bet'] = bid # if they returned a bid, use it here.
                     player_bid = current_bid - required_bid
-                    self.update_player_actions(round_name,agent.name,'bid',player_bid)
+                    final_action = 'bet'
+                self.update_player_actions(agent.name,player['hand'],current_river,final_action,player_bid)
 
             opponents_left = self.get_num_active_opponents()
             if (opponents_left == 0):  # if 1 player is left quit bidding
@@ -1007,11 +1025,12 @@ class Game():
                     dprint("current {} for {}".format(bid,player['player']))
                     if bid is None:
                         player['active'] = 0 # if the player folds, he leaves the game
-                        self.update_actions(round_name,agent.name,'fold',0)
+                        final_action = 'fold'
                     else:
                         player['bet'] = bid # if he makes a bet, it becomes his new bet
                         player_bid = current_bid - required_bid
-                        self.update_player_actions(round_name,agent.name,'bid',player_bid)
+                        final_action = 'bet'
+                    self.update_player_actions(agent.name,player['hand'],None,final_action,player_bid)
 
                 opponents_left = self.get_num_active_opponents()
                 if (opponents_left == 0): # if 1 player is left finish the current bidding round
@@ -1338,6 +1357,7 @@ class SmartPlayer(GenericPlayer):
 
 class MonteCarloTreeSearchPlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        print(card_reduced_set(hand))
         self.call_bet()
         return None
 

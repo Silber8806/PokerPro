@@ -34,6 +34,10 @@ class GenericNode(object):
     def __repr__(self):
         return 'node ' + str(self.id)
 
+class CardNode(GenericNode):
+    def __init__(self):
+        super().__init__()
+
 class OpponentNode(GenericNode):
     def __init__(self):
         super().__init__()
