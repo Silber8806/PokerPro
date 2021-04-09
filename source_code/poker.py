@@ -59,7 +59,7 @@ def card_reduced_set(cards):
     sorted_ranks = sorted([card1.rank, card2.rank],key=lambda card: RankMap[card])
     sorted_ranks.append(card_suited)
 
-    return sorted_ranks
+    return tuple(sorted_ranks)
 
 
 # used to take a list and chunk it into a list of n-tuples
