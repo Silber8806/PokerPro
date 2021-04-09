@@ -2,6 +2,16 @@
 
 import math
 import itertools
+import collections
+
+Card = collections.namedtuple('Card', ['rank', 'suit'])
+
+def check_if_tuple_of_cards(cards):
+    if isinstance(cards,tuple):
+        for card in cards:
+            if not isinstance(card,Card):
+                raise Exception("tuple not a card class...fail")
+    return None 
 
 def UCB(wins,games,parent_total,constant):
     if games == 0 or parent_total == 0:
@@ -14,79 +24,86 @@ class GenericNode(object):
 
     def __init__(self):
         self.id = next(self.id_iter)
-        self.expected_value = 0
+        self.wins = 0
         self.total = 0
-        self.fold = None 
-        self.call = None 
-        self.bet = None
-
-    def print_tree(self,level=0):
-        print(level * "\t" + str(self))
-        if self.fold is None and self.call is None and self.bet is None:
-            return None 
-        else:
-            level += 1
-            for branch_type in ['fold','call','bet']:
-                branch_child = getattr(self,branch_type)
-                if branch_child is not None:
-                    branch_child.print_tree(level)
 
     def __repr__(self):
         return 'node ' + str(self.id)
 
-class OpponentNode(GenericNode):
+class CardNode(GenericNode):
+    def __init__(self,card_values):
+        super().__init__()
+        self.turn = None
+        self.card_values = card_values
+
+class PlayerNode(GenericNode):
+    def __init__(self):
+        super().__init__()
+        self.fold = None
+        self.call = None 
+        self.bet = None
+
+class OpponentNode(PlayerNode):
     def __init__(self):
         super().__init__()
 
-class DecisionNode(GenericNode):
+class DecisionNode(PlayerNode):
     def __init__(self):
         super().__init__()
 
 class MCST(object):
+    def __init__(self,turn_order,card_set):
+        self.turn_order = turn_order
+        self.hand = card_set
+        pass
 
-    def __init__(self,player_actions,active_player):
-        self.action_history=player_actions
-        self.active_player=active_player
-        self.root = None
 
-    def set_root(self,node):
-        self.root = node
-        return None
+class MCST_Set():
+    def __init__(self):
+        self.pre_flops = {}
 
-    def construct_tree(self):
-        current_player = self.active_player
+    def all_hands(self):
+        return list(self.pre_flops.keys())
 
-        if len(self.action_history) == 0:
-            return None
+    def add_hand(self,turn_order,cards):
+        check_if_tuple_of_cards(cards)
+        game_tuple = (turn_order,cards)
+        if cards not in self.pre_flops:
+            self.pre_flops[game_tuple] = MCST(turn_order,cards)
+        return None 
 
-        action_history_iter = iter(self.action_history)
-        phase, player, bid_type, amount_bid = next(action_history_iter)
-
-        last_node, last_action = DecisionNode() if player == current_player else OpponentNode(), bid_type
-
-        self.set_root(last_node)
-
-        for action in action_history_iter:
-            phase, player, bid_type, amount_bid = action
-            if player == current_player:
-                new_node = DecisionNode()
-            else:
-                new_node = OpponentNode()
-
-            setattr(last_node, last_action, new_node)
-
-            last_node, last_action = new_node, bid_type
+    def get_hand(self,turn_order,cards):
+        check_if_tuple_of_cards(cards)
+        game_tuple = (turn_order,cards)
+        if cards not in self.pre_flops:
+            self.pre_flops[game_tuple] = MCST(turn_order,cards)
+        return self.pre_flops[game_tuple] 
 
     def __repr__(self):
-        self.root.print_tree()
-        return 'MSCT_Tree'
+        message = 'MCTS set:'
+        for turn_order, hand in self.all_hands():
+            message += '\n{} - {}'.format(turn_order, hand)
+        return message
 
-example_player_actions = [('pre_flop_1', 'players_1', 'call', -5), ('pre_flop_1', 'players_2', 'call', 0), ('pos_flop_card_1_bid_round_1', 'players_1', 'call', 0), ('pos_flop_card_1_bid_round_1', 'players_2', 'call', 0), ('pos_flop_card_2_bid_round_1', 'players_1', 'call', 0), ('pos_flop_card_2_bid_round_1', 'players_2', 'call', 0), ('pos_flop_card_3_bid_round_1', 'players_1', 'call', 0)]
-example_player = 'players_1'
+query_set = [
+        ('player', 'current', 'bet', -5), 
+        ('player', 'opponent 1', 'bet', 0), 
+        ('card', Card(rank='2', suit='spades')), 
+        ('player', 'current', 'bet', 0), 
+        ('player', 'opponent 1', 'bet', 0), 
+        ('card', Card(rank='3', suit='diamonds')), 
+        ('player', 'current', 'bet', 0), 
+        ('player', 'opponent 1', 'bet', 0), 
+        ('card', Card(rank='3', suit='hearts'))
+    ]
 
 if __name__ == '__main__':
     print("starting MCTS")
-    MCST_tree = MCST(example_player_actions,example_player)
-    MCST_tree.construct_tree()
-    print(MCST_tree)
-    
+    player = 'player 1'
+    turn_order = ('current', 'opponent 1')
+    cards = (Card(rank='9', suit='spades'), Card(rank='A', suit='spades'))
+
+    hand_sets = MCST_Set()
+    hand_sets.add_hand(turn_order,cards)
+    current_MCST = hand_sets.get_hand(turn_order,cards)
+    print(current_MCST)
