@@ -726,6 +726,11 @@ class GenericPlayer(object):
         
         return self.active_game.get_player_actions()
 
+    def get_beginning_players(self):
+        if self.active_game is None:
+            raise Exception("Can't access player history of non-existent game")
+        return self.active_game.get_beginning_players()
+
     def _set_up_bet(self,opponents,call_bid,current_bid,raise_allowed=False):
         """
             sets up some basic context for a betting round.  Used by make_bet
@@ -932,17 +937,33 @@ class Game():
         else:
             return False
 
-    def update_player_actions(self,player_name,hand,river,action,bid):
+    def update_player_actions(self,player_name,action,bid):
         """ 
             Keep player history so that you can look it up for strategies for example
             MCTS simulations etc.
         """
-        update_tup = (player_name,hand,river,action,bid)
+        update_tup = ('player', player_name,action,bid)
         self.player_actions.append(update_tup)
+        return None
+
+    def update_player_actions_cards(self,card):
+        """ 
+            Keep player history so that you can look it up for strategies for example
+            MCTS simulations etc.
+        """
+
+        self.player_actions.append(('card',card))
         return None
 
     def get_player_actions(self):
         return self.player_actions
+
+    def set_beginning_players(self):
+        self.beginning_players = [player['player'].name for player in self.players]
+        return None
+
+    def get_beginning_players(self):
+        return self.beginning_players
 
     def pre_flop(self):
         """
@@ -955,12 +976,13 @@ class Game():
         for player, hand in zip(self.players,chunk(self.cards[5:],2)):
             player['hand'] = hand
 
+        self.set_beginning_players()
+
         dprint("pre-flob bidding")
         # max bid on limit poker is 3 rounds
         current_river = None
 
         for turn in range(1,4):  # limited texas hold-em has 3 rounds max
-            round_name = 'pre_flop_' + str(turn)
             dprint("pre-bid round: {}".format(turn))
             for player in self.get_active_players():  # always remove those people that folded from turnss
                 agent = player['player'] # get player object for method calls
@@ -979,7 +1001,7 @@ class Game():
                     player['bet'] = bid # if they returned a bid, use it here.
                     player_bid = current_bid - required_bid
                     final_action = 'bet'
-                self.update_player_actions(agent.name,player['hand'],current_river,final_action,player_bid)
+                self.update_player_actions(agent.name,final_action,player_bid)
 
             opponents_left = self.get_num_active_opponents()
             if (opponents_left == 0):  # if 1 player is left quit bidding
@@ -1010,6 +1032,7 @@ class Game():
             current_river = self.river[:num_of_river_cards] # the new river with the added 3 or 1 cards
             dprint("starting river turn: {}".format(turn))
             dprint("current community/river is: {}".format(current_river))
+            self.update_player_actions_cards(current_river[-1])
             for bidding_round in range(1,4):  # here we start the 3 bidding rounds
                 round_name = 'pos_flop_card_' + str(turn) + '_bid_round_' + str(bidding_round)
                 dprint("bidding round is: {}".format(bidding_round))
@@ -1030,7 +1053,7 @@ class Game():
                         player['bet'] = bid # if he makes a bet, it becomes his new bet
                         player_bid = current_bid - required_bid
                         final_action = 'bet'
-                    self.update_player_actions(agent.name,player['hand'],None,final_action,player_bid)
+                    self.update_player_actions(agent.name,final_action,player_bid)
 
                 opponents_left = self.get_num_active_opponents()
                 if (opponents_left == 0): # if 1 player is left finish the current bidding round
@@ -1356,8 +1379,43 @@ class SmartPlayer(GenericPlayer):
         return None
 
 class MonteCarloTreeSearchPlayer(GenericPlayer):
+    def get_opponents_map(self):
+
+        opponent_map = {}
+
+        o = 0
+        for player in self.get_beginning_players():
+            if player == self.name:
+                opponent_map[player] = 'current'
+            else:
+                o += 1
+                opponent_map[player] = 'opponent ' + str(o)
+            
+        return opponent_map
+
+    def get_turn_order(self):
+        opponent_map = self.get_opponents_map()
+        turn_order_map = [opponent_map[player] for player in self.get_beginning_players()]
+        return tuple(turn_order_map)
+
+    def get_converted_player_actions(self):
+        converted_list = []
+        opponent_map = self.get_opponents_map()
+        for action in self.get_all_player_actions():
+            if action[0] == 'card':
+                converted_list.append(action)
+            else:
+                player_type, player_name, bet_type, bet_amount = action 
+                converted_list.append((player_type,opponent_map[player_name],bet_type,bet_amount))
+
+        return converted_list
+
+
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
-        print(card_reduced_set(hand))
+        card_history = self.get_converted_player_actions()
+        beginning_players = self.get_turn_order()
+        print(beginning_players)
+        print(self.name, tuple(hand),card_history)
         self.call_bet()
         return None
 
