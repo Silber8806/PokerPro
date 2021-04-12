@@ -622,6 +622,7 @@ class GenericPlayer(object):
         self.won_game = 0
         self.final_hand = None
         self.blind_type = 'None'
+        self.hand_dictionary={i+j+k:{'sum_absolute_bet':0,'sum_bet':0} for i in(Ranks) for j in(Ranks) for k in(['N','Y'])}
 
     def register_for_game(self,game_id):
         """
@@ -1305,6 +1306,47 @@ class SmartPlayer(GenericPlayer):
             self.fold_bet()
         return None
 
+class simpleLearnerPlayer(GenericPlayer):
+    def policy():
+        return 0
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        """
+        This player is a very simple learner, it looks at the first two card and make the decision on
+        whether to call, raise or fold based on the first two call. Player has 3 simple policies, fold, call and raise by 20.
+        we selected the same betting amount as we had for always call and always raise players in order to be able to compare the results.
+        Player starts learning by playing games, at first he randomly selects between different policy (fold, call and raise) and sotre the
+        final results "game net change" as its rewards. As it play more hands it starts to build the intuition about which hands/strategy give him better results.
+        Player going to store the first two cards as a dictionary with rankings and whether they are the same suit or not as Y/N (for example if player has king 
+        daimond and 2 club the key for the dictionary will be K2N & 2KN, but if we had King club and 2 club then the key for dictionary will be 2KY & K2Y). Then we append 
+        the value of "game net change" after each game into the list. 
+        As player plays more hand it starts utilizing the "game net change" value for each pair for cards. for example if player recieves 2KY it looks at "game net change"
+        value from previous plays and calculates the probability of playing by adding all the "game net change" values in the list for 2KY hand and then divide that by adding
+        the absolute value of "game net change".
+        we use uniform random number generator between 0 and 1 
+        1- if random value is less than calculated probability player raise
+        2- if random value is greater caluculated probability but less than calculated probability +0.2 player call
+        3- if random value is less than calculated probability +0.2 player fold.
+
+        in order to avoid early elimination of some cards, if calculated probability became negative we change that to 0.1  which means player may raise the hand with 10 percent chance or call the hand with 0.1+0.2=0.3 30%
+        probability
+
+        use make bet function as part of class.
+        on the player make attribute of player call history.
+        make preflop wins as dictionary.
+        learn about getter and setter ( encapsolation), later.
+        make the function for making it suitless. get the card and make it suitless.
+        """
+        print('______________________________________________________________________')
+        print('______________________________________________________________________')
+        print(hand)
+        print(river)
+        print(self.hand_dictionary)
+        print(random.random())
+        print([x(card.rank) for x in hand])
+        #sys.exit(0)
+
+
+
 def validate_config(config):
     """
         Checks the config for errors, quiet extensive.
@@ -1436,7 +1478,7 @@ def run_all_simulations(config):
     return None
 
 debug = 0 # to see detailed messages of simulation, put this to 1, think verbose mode
-use_parallel = 1 # would not recommend using use_cache=1 on function simulate_win_odds due to not knowing if globals are thread or process safe.
+use_parallel = 0 # would not recommend using use_cache=1 on function simulate_win_odds due to not knowing if globals are thread or process safe.
 
 # serial runs are guanteed unique repeatable results.  Parallel runs due to randomness of start times are not.  worth noting.
 
@@ -1448,7 +1490,7 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 3, # number of poker tables simulated
+       'tables': 1, # number of poker tables simulated
        'hands': 10, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
@@ -1468,6 +1510,7 @@ if __name__ == '__main__':
                     #GambleByProbabilityPlayer, # defines strategy of player 4
                     #ConservativePlayer, # defines strategy of player 5
                     #SmartPlayer # defines strategy of player 6
+                    simpleLearnerPlayer
                 ]
             }    
         ]
