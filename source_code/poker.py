@@ -1413,6 +1413,8 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         card_history = self.get_converted_player_actions()
         beginning_players = self.get_turn_order()
+        print(beginning_players)
+        print(card_history)
         self.call_bet()
         return None
 
