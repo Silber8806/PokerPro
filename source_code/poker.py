@@ -1032,9 +1032,8 @@ class Game():
             current_river = self.river[:num_of_river_cards] # the new river with the added 3 or 1 cards
             dprint("starting river turn: {}".format(turn))
             dprint("current community/river is: {}".format(current_river))
-            self.update_player_actions_cards(current_river[-1])
+            self.update_player_actions_cards(current_river)
             for bidding_round in range(1,4):  # here we start the 3 bidding rounds
-                round_name = 'pos_flop_card_' + str(turn) + '_bid_round_' + str(bidding_round)
                 dprint("bidding round is: {}".format(bidding_round))
                 for player in self.get_active_players():  # only players that did not fold can play
                     agent = player['player'] # get player method for agent calls
@@ -1403,6 +1402,8 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
         opponent_map = self.get_opponents_map()
         for action in self.get_all_player_actions():
             if action[0] == 'card':
+                action_cards = sorted(action[1][0:3],key=lambda card: (RankMap[card.rank],card.suit)) + action[1][3:]
+                action = ('card',tuple(action_cards))
                 converted_list.append(action)
             else:
                 player_type, player_name, bet_type, bet_amount = action 
@@ -1412,8 +1413,6 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         card_history = self.get_converted_player_actions()
         beginning_players = self.get_turn_order()
-        print(beginning_players)
-        print(self.name, tuple(hand),card_history)
         self.call_bet()
         return None
 
@@ -1547,7 +1546,7 @@ def validate_config(config):
             raise Exception("Config Error: simulation player_types key needs to be a list")
         player_type_allowed_classes = [cls.__name__ for cls in GenericPlayer.__subclasses__()]
         if len(simulation['player_types']) < 2 or len(simulation['player_types']) > 6:
-            raise ExceptioN("Config Error: simulation has less than 2 or more than 6 players") 
+            raise Exception("Config Error: simulation has less than 2 or more than 6 players") 
         for player_type in simulation['player_types']:
             if player_type.__name__ not in player_type_allowed_classes:
                 raise Exception("Config issue: {} not in {} allowed player_types".format(player_type.__name__, player_type_allowed_classes))
