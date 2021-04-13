@@ -24,17 +24,13 @@ class GenericNode(object):
 
     def __init__(self):
         self.id = next(self.id_iter)
-        self.wins = 0
-        self.total = 0
+        self.card_states = {}
+
+    def get_card_state(self):
+        return self.card_states
 
     def __repr__(self):
         return 'node ' + str(self.id)
-
-class CardNode(GenericNode):
-    def __init__(self,card_values):
-        super().__init__()
-        self.turn = None
-        self.card_values = card_values
 
 class PlayerNode(GenericNode):
     def __init__(self):
@@ -52,11 +48,17 @@ class DecisionNode(PlayerNode):
         super().__init__()
 
 class MCST(object):
-    def __init__(self,turn_order,card_set):
+    def __init__(self,turn_order):
         self.turn_order = turn_order
-        self.hand = card_set
+        self.card_context = []
         pass
 
+    def get_card_context(self):
+        return self.card_context
+
+    def set_card_context(self,cards):
+        self.card_context = cards 
+        return None
 
 class MCST_Set():
     def __init__(self):
@@ -65,18 +67,16 @@ class MCST_Set():
     def all_hands(self):
         return list(self.pre_flops.keys())
 
-    def add_hand(self,turn_order,cards):
-        check_if_tuple_of_cards(cards)
-        game_tuple = (turn_order,cards)
+    def add_game(self,turn_order):
+        game_tuple = (turn_order)
         if cards not in self.pre_flops:
-            self.pre_flops[game_tuple] = MCST(turn_order,cards)
+            self.pre_flops[game_tuple] = MCST(turn_order)
         return None 
 
-    def get_hand(self,turn_order,cards):
-        check_if_tuple_of_cards(cards)
-        game_tuple = (turn_order,cards)
+    def get_game(self,turn_order):
+        game_tuple = (turn_order)
         if cards not in self.pre_flops:
-            self.pre_flops[game_tuple] = MCST(turn_order,cards)
+            self.pre_flops[game_tuple] = MCST(turn_order)
         return self.pre_flops[game_tuple] 
 
     def __repr__(self):
@@ -99,11 +99,10 @@ query_set = [
 
 if __name__ == '__main__':
     print("starting MCTS")
-    player = 'player 1'
     turn_order = ('current', 'opponent 1')
     cards = (Card(rank='9', suit='spades'), Card(rank='A', suit='spades'))
 
     hand_sets = MCST_Set()
-    hand_sets.add_hand(turn_order,cards)
-    current_MCST = hand_sets.get_hand(turn_order,cards)
+    hand_sets.add_game(turn_order)
+    current_MCST = hand_sets.get_game(turn_order)
     print(current_MCST)
