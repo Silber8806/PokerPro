@@ -996,6 +996,7 @@ class Game():
                 dprint("current {} for {}".format(bid,player['player']))
                 if bid is None:  # if the player folded...than return None, they no longer have a bid
                     player['active'] = 0 
+                    player_bid = None
                     final_action = 'fold'
                 else:
                     player['bet'] = bid # if they returned a bid, use it here.
@@ -1047,6 +1048,7 @@ class Game():
                     dprint("current {} for {}".format(bid,player['player']))
                     if bid is None:
                         player['active'] = 0 # if the player folds, he leaves the game
+                        player_bid = None
                         final_action = 'fold'
                     else:
                         player['bet'] = bid # if he makes a bet, it becomes his new bet
@@ -1655,7 +1657,7 @@ if __name__ == '__main__':
                     #GambleByProbabilityPlayer, # defines strategy of player 4
                     #ConservativePlayer, # defines strategy of player 5
                     #SmartPlayer # defines strategy of player 6
-                    MonteCarloTreeSearchPlayer
+                    simpleLearnerPlayer
                 ]
             }    
         ]
