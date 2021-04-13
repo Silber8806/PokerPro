@@ -1644,13 +1644,7 @@ if __name__ == '__main__':
        'hands': 10, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
-       'simulations': [ # each dict in the list is a simulation to run
-                    
-           
-            
-           
-            
-            
+       'simulations': [ # each dict in the list is a simulation to run    
             {
                 'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
@@ -1660,7 +1654,7 @@ if __name__ == '__main__':
                     #GambleByProbabilityPlayer, # defines strategy of player 4
                     #ConservativePlayer, # defines strategy of player 5
                     #SmartPlayer # defines strategy of player 6
-                    simpleLearnerPlayer
+                    MonteCarloTreeSearchPlayer
                 ]
             }    
         ]
