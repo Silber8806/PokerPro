@@ -46,22 +46,6 @@ def card_to_string(card):
     else:
         return 'Z-N/A'
 
-def card_reduced_set(cards):
-    if len(cards) != 2:
-        raise Exception("Only 2 cards can be scored")
-    card1, card2 = cards 
-
-    if card1.suit == card2.suit:
-        card_suited = "Same"
-    else:
-        card_suited = "Diff"
-
-    sorted_ranks = sorted([card1.rank, card2.rank],key=lambda card: RankMap[card])
-    sorted_ranks.append(card_suited)
-
-    return tuple(sorted_ranks)
-
-
 # used to take a list and chunk it into a list of n-tuples
 # found this on stackoverflow for chunking lists and used
 # directly for that puporse.
@@ -638,24 +622,16 @@ class GenericPlayer(object):
         self.won_game = 0
         self.final_hand = None
         self.blind_type = 'None'
-<<<<<<< HEAD
         self.hand_dictionary={i+j+k:{'sum_absolute_bet':0,'sum_bet':0} for i in(Ranks) for j in(Ranks) for k in(['N','Y'])}
-=======
-        self.current_game = None
-        self.active_game = None
-        self.pre_flob_wins = {}
->>>>>>> dc5669928787a6d9704953f4df092f5a9ce26807
 
-    def register_for_game(self,game):
+    def register_for_game(self,game_id):
         """
             Register a player for a game, making sure that a lot of attributes
             that keep track of state are reinitialized.  A lot of these attributes
             are used for reporting purposes later on.
         """
-        game_id = game.id
         self.games_played.append(game_id)
         self.current_game = game_id
-        self.active_game = game
         self.bid_number = 0
         self.registered_balance = self.balance
         self.folded_this_game = 0
@@ -723,17 +699,6 @@ class GenericPlayer(object):
             raise Exception("amount paid: {} is greater than balance {}".format(pay_bid,self.balance))
         else:
             self.balance = self.balance - pay_bid
-
-    def get_all_player_actions(self):
-        if self.active_game is None:
-            raise Exception("Can't access player history of non-existent game")
-        
-        return self.active_game.get_player_actions()
-
-    def get_beginning_players(self):
-        if self.active_game is None:
-            raise Exception("Can't access player history of non-existent game")
-        return self.active_game.get_beginning_players()
 
     def _set_up_bet(self,opponents,call_bid,current_bid,raise_allowed=False):
         """
@@ -848,7 +813,7 @@ class GenericPlayer(object):
         """
             This is a method that checks if the player is the last man standing.  If he 
             is, automatically wins the round.  If he is not, it calls self.bet_strategy, 
-            which is not part of GenericPlayer, but is instfead used by subclasses of the
+            which is not part of GenericPlayer, but is instead used by subclasses of the
             player to implement custom strategies.  record_bet made after bet_strategy
             records the hand.  Don't manipulate this, instead inherit from this class
             and make your own strategy using a bet_strategy method.  Think of this 
@@ -884,10 +849,9 @@ class Game():
         # you need a minimum balance otherwise, players with $0 will join your game.
         self.minumum = minimum_balance_to_join
         self.players = [{"player": player, "active": 1, "hand": None, "bet": 0} for player in players if player.balance > self.minumum] # get rid of losers that don't have enough money
-        self.player_actions = []
 
         for player in players:
-            player.register_for_game(self) # get the unique memory id for the game
+            player.register_for_game(self.id) # get the unique memory id for the game
 
         # every poker game has a small and big blind to prevent people from always folding unless they have pocket aces.
         self.players_left_at_start = len(self.players)
@@ -941,34 +905,6 @@ class Game():
         else:
             return False
 
-    def update_player_actions(self,player_name,action,bid):
-        """ 
-            Keep player history so that you can look it up for strategies for example
-            MCTS simulations etc.
-        """
-        update_tup = ('player', player_name,action,bid)
-        self.player_actions.append(update_tup)
-        return None
-
-    def update_player_actions_cards(self,card):
-        """ 
-            Keep player history so that you can look it up for strategies for example
-            MCTS simulations etc.
-        """
-
-        self.player_actions.append(('card',card))
-        return None
-
-    def get_player_actions(self):
-        return self.player_actions
-
-    def set_beginning_players(self):
-        self.beginning_players = [player['player'].name for player in self.players]
-        return None
-
-    def get_beginning_players(self):
-        return self.beginning_players
-
     def pre_flop(self):
         """
             This is actually part of the game.  The way it works is that each player gets 
@@ -979,8 +915,6 @@ class Game():
         """
         for player, hand in zip(self.players,chunk(self.cards[5:],2)):
             player['hand'] = hand
-
-        self.set_beginning_players()
 
         dprint("pre-flob bidding")
         # max bid on limit poker is 3 rounds
@@ -1000,12 +934,8 @@ class Game():
                 dprint("current {} for {}".format(bid,player['player']))
                 if bid is None:  # if the player folded...than return None, they no longer have a bid
                     player['active'] = 0 
-                    final_action = 'fold'
                 else:
                     player['bet'] = bid # if they returned a bid, use it here.
-                    player_bid = current_bid - required_bid
-                    final_action = 'bet'
-                self.update_player_actions(agent.name,final_action,player_bid)
 
             opponents_left = self.get_num_active_opponents()
             if (opponents_left == 0):  # if 1 player is left quit bidding
@@ -1036,9 +966,7 @@ class Game():
             current_river = self.river[:num_of_river_cards] # the new river with the added 3 or 1 cards
             dprint("starting river turn: {}".format(turn))
             dprint("current community/river is: {}".format(current_river))
-            self.update_player_actions_cards(current_river[-1])
             for bidding_round in range(1,4):  # here we start the 3 bidding rounds
-                round_name = 'pos_flop_card_' + str(turn) + '_bid_round_' + str(bidding_round)
                 dprint("bidding round is: {}".format(bidding_round))
                 for player in self.get_active_players():  # only players that did not fold can play
                     agent = player['player'] # get player method for agent calls
@@ -1052,12 +980,8 @@ class Game():
                     dprint("current {} for {}".format(bid,player['player']))
                     if bid is None:
                         player['active'] = 0 # if the player folds, he leaves the game
-                        final_action = 'fold'
                     else:
                         player['bet'] = bid # if he makes a bet, it becomes his new bet
-                        player_bid = current_bid - required_bid
-                        final_action = 'bet'
-                    self.update_player_actions(agent.name,final_action,player_bid)
 
                 opponents_left = self.get_num_active_opponents()
                 if (opponents_left == 0): # if 1 player is left finish the current bidding round
@@ -1382,7 +1306,6 @@ class SmartPlayer(GenericPlayer):
             self.fold_bet()
         return None
 
-<<<<<<< HEAD
 class simpleLearnerPlayer(GenericPlayer):
     def policy():
         return 0
@@ -1412,59 +1335,56 @@ class simpleLearnerPlayer(GenericPlayer):
         make preflop wins as dictionary.
         learn about getter and setter ( encapsolation), later.
         make the function for making it suitless. get the card and make it suitless.
+
         """
         print('______________________________________________________________________')
         print('______________________________________________________________________')
-        print(hand)
-        print(river)
-        print(self.hand_dictionary)
+        
+        if len(self.balance_history)==0:
+            
+            self.number_of_finished_games=0
+        
+        
+        elif len(self.balance_history)>self.number_of_finished_games:
+            number_of_game=len(self.balance_history)
+            print('card1 is ',self.balance_history)
+            #print('last_item is', self.balance_history[-1][-1])
+            self.number_of_finished_games=len(self.balance_history)
+            #print(self.number_of_finished_games)
+        hand_rank=[x for x,y in hand]
+        hand_suit=[y for x,y in hand]
+        if hand_suit[0]==hand_suit[1]:
+            same_suit='Y'
+        else:
+            same_suit='N'
+        dictionary_key=[hand_rank[0]+hand_rank[1]+same_suit,hand_rank[1]+hand_rank[0]+same_suit]
+        #using same probability to play for first hand
+        #print('dictionary is ',self.hand_dictionary[dictionary_key[0]]['sum_absolute_bet'])
+        print('river is ',river)
+        if self.hand_dictionary[dictionary_key[0]]['sum_absolute_bet']==0:
+            chance=random.random()
+            if chance<0.33:
+                self.fold_bet()
+            elif chance>=0.33 and chance<0.66:
+                self.call_bet()
+            else:
+                self.raise_bet(20)
+        else:
+            if self.hand_dictionary[0]['sum_bet']>0:
+                self.raise_bet(round(100*self.hand_dictionary[0]['sum_bet']/self.hand_dictionary[0]['sum_absolute_bet'],0))
+            else:
+                if chance<0.2:
+                    self.call_bet()
+                else:
+                    self.fold_bet()
+        
+        
+        print('current pot is',pot)
         print(random.random())
-        print([x(card.rank) for x in hand])
+        #print([x(card.rank) for x in hand])
         #sys.exit(0)
 
 
-=======
-class MonteCarloTreeSearchPlayer(GenericPlayer):
-    def get_opponents_map(self):
-
-        opponent_map = {}
-
-        o = 0
-        for player in self.get_beginning_players():
-            if player == self.name:
-                opponent_map[player] = 'current'
-            else:
-                o += 1
-                opponent_map[player] = 'opponent ' + str(o)
-            
-        return opponent_map
-
-    def get_turn_order(self):
-        opponent_map = self.get_opponents_map()
-        turn_order_map = [opponent_map[player] for player in self.get_beginning_players()]
-        return tuple(turn_order_map)
-
-    def get_converted_player_actions(self):
-        converted_list = []
-        opponent_map = self.get_opponents_map()
-        for action in self.get_all_player_actions():
-            if action[0] == 'card':
-                converted_list.append(action)
-            else:
-                player_type, player_name, bet_type, bet_amount = action 
-                converted_list.append((player_type,opponent_map[player_name],bet_type,bet_amount))
-
-        return converted_list
-
-
-    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
-        card_history = self.get_converted_player_actions()
-        beginning_players = self.get_turn_order()
-        print(beginning_players)
-        print(self.name, tuple(hand),card_history)
-        self.call_bet()
-        return None
->>>>>>> dc5669928787a6d9704953f4df092f5a9ce26807
 
 def validate_config(config):
     """
@@ -1614,11 +1534,17 @@ if __name__ == '__main__':
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run
+                    
+           
+            
+           
+            
+            
             {
                 'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
-                    MonteCarloTreeSearchPlayer, # defines strategy of player 2
+                    AlwaysRaisePlayer, # defines strategy of player 2
                     #CalculatedPlayer, # defines strategy of player 3
                     #GambleByProbabilityPlayer, # defines strategy of player 4
                     #ConservativePlayer, # defines strategy of player 5
