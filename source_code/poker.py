@@ -1463,6 +1463,8 @@ class simpleLearnerPlayer(GenericPlayer):
             #print(self.number_of_finished_games)
         hand_rank=[x for x,y in hand]
         hand_suit=[y for x,y in hand]
+
+        """
         if hand_suit[0]==hand_suit[1]:
             same_suit='Y'
         else:
@@ -1489,12 +1491,13 @@ class simpleLearnerPlayer(GenericPlayer):
                     self.fold_bet()
         
         
-        print('current pot is',pot)
-        print(random.random())
+        
+        #print(random.random())
         #print([x(card.rank) for x in hand])
         #sys.exit(0)
 
-
+"""
+    print('current pot is',pot)
 
 def validate_config(config):
     """
@@ -1648,12 +1651,13 @@ if __name__ == '__main__':
                 'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysRaisePlayer, # defines strategy of player 2
+                    #AlwaysRaisePlayer, # defines strategy of player 2
                     #CalculatedPlayer, # defines strategy of player 3
                     #GambleByProbabilityPlayer, # defines strategy of player 4
                     #ConservativePlayer, # defines strategy of player 5
                     #SmartPlayer # defines strategy of player 6
-                    MonteCarloTreeSearchPlayer
+                    #MonteCarloTreeSearchPlayer
+                    simpleLearnerPlayer
                 ]
             }    
         ]
