@@ -999,8 +999,11 @@ class Game():
                     final_action = 'fold'
                 else:
                     player['bet'] = bid # if they returned a bid, use it here.
-                    player_bid = current_bid - required_bid
-                    final_action = 'bet'
+                    player_bid = bid - required_bid
+                    if player_bid > 0:
+                        final_action = 'bet'
+                    else:
+                        final_action = 'call'
                 self.update_player_actions(agent.name,final_action,player_bid)
 
             opponents_left = self.get_num_active_opponents()
@@ -1050,8 +1053,11 @@ class Game():
                         final_action = 'fold'
                     else:
                         player['bet'] = bid # if he makes a bet, it becomes his new bet
-                        player_bid = current_bid - required_bid
-                        final_action = 'bet'
+                        player_bid = bid - required_bid
+                        if player_bid > 0:
+                            final_action = 'bet'
+                        else:
+                            final_action = 'call'
                     self.update_player_actions(agent.name,final_action,player_bid)
 
                 opponents_left = self.get_num_active_opponents()
