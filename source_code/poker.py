@@ -996,6 +996,7 @@ class Game():
                 dprint("current {} for {}".format(bid,player['player']))
                 if bid is None:  # if the player folded...than return None, they no longer have a bid
                     player['active'] = 0 
+                    player_bid = None
                     final_action = 'fold'
                 else:
                     player['bet'] = bid # if they returned a bid, use it here.
@@ -1050,6 +1051,7 @@ class Game():
                     dprint("current {} for {}".format(bid,player['player']))
                     if bid is None:
                         player['active'] = 0 # if the player folds, he leaves the game
+                        player_bid = None
                         final_action = 'fold'
                     else:
                         player['bet'] = bid # if he makes a bet, it becomes his new bet
@@ -1656,7 +1658,7 @@ if __name__ == '__main__':
                 'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
-                    #AlwaysRaisePlayer, # defines strategy of player 2
+                    AlwaysRaisePlayer, # defines strategy of player 2
                     #CalculatedPlayer, # defines strategy of player 3
                     #GambleByProbabilityPlayer, # defines strategy of player 4
                     #ConservativePlayer, # defines strategy of player 5
