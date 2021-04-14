@@ -1456,7 +1456,7 @@ class simpleLearnerPlayer(GenericPlayer):
         print('______________________________________________________________________')
         print('______________________________________________________________________')
         
-        if len(self.balance_history)==0:
+        """if len(self.balance_history)==0:
             
             self.number_of_finished_games=0
         
@@ -1470,7 +1470,7 @@ class simpleLearnerPlayer(GenericPlayer):
         hand_rank=[x for x,y in hand]
         hand_suit=[y for x,y in hand]
 
-        """
+        
         if hand_suit[0]==hand_suit[1]:
             same_suit='Y'
         else:
@@ -1495,14 +1495,14 @@ class simpleLearnerPlayer(GenericPlayer):
                     self.call_bet()
                 else:
                     self.fold_bet()
-        
+        """
         
         print('current pot is',pot)
         print(random.random())
         #print([x(card.rank) for x in hand])
         #sys.exit(0)
 
-"""
+
 
 def validate_config(config):
     """
@@ -1661,7 +1661,7 @@ if __name__ == '__main__':
                     #GambleByProbabilityPlayer, # defines strategy of player 4
                     #ConservativePlayer, # defines strategy of player 5
                     #SmartPlayer # defines strategy of player 6
-                    MonteCarloTreeSearchPlayer
+                    #MonteCarloTreeSearchPlayer
                     simpleLearnerPlayer
                 ]
             }    
