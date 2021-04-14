@@ -1491,13 +1491,12 @@ class simpleLearnerPlayer(GenericPlayer):
                     self.fold_bet()
         
         
-        
-        #print(random.random())
+        print('current pot is',pot)
+        print(random.random())
         #print([x(card.rank) for x in hand])
         #sys.exit(0)
 
 """
-    print('current pot is',pot)
 
 def validate_config(config):
     """
@@ -1656,7 +1655,7 @@ if __name__ == '__main__':
                     #GambleByProbabilityPlayer, # defines strategy of player 4
                     #ConservativePlayer, # defines strategy of player 5
                     #SmartPlayer # defines strategy of player 6
-                    #MonteCarloTreeSearchPlayer
+                    MonteCarloTreeSearchPlayer
                     simpleLearnerPlayer
                 ]
             }    
