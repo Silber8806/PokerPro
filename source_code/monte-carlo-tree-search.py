@@ -143,6 +143,11 @@ class MCST(object):
         new_node = PlayerNode(cards=cards,player_type=player_type,bid=bid)
         return new_node
 
+    def expand_tree(self):
+        root = self.get_root()
+
+        if root is None:
+
     def build(self,compute_time=None):
         if compute_time is None:
             raise Exception("You didn't specify a compute or step limit for MCTS")
