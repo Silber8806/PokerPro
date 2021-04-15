@@ -1458,7 +1458,7 @@ class simpleLearnerPlayer(GenericPlayer):
         print('______________________________________________________________________')
         print('______________________________________________________________________')
         
-        """if len(self.balance_history)==0:
+        if len(self.balance_history)==0:
             
             self.number_of_finished_games=0
         
@@ -1497,7 +1497,7 @@ class simpleLearnerPlayer(GenericPlayer):
                     self.call_bet()
                 else:
                     self.fold_bet()
-        """
+        
         
         print('current pot is',pot)
         print(random.random())
