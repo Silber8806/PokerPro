@@ -3,6 +3,7 @@
 import math
 import itertools
 import collections
+import time
 
 Card = collections.namedtuple('Card', ['rank', 'suit'])
 
@@ -33,11 +34,16 @@ class GenericNode(object):
         return 'node ' + str(self.id)
 
 class PlayerNode(GenericNode):
-    def __init__(self):
+    def __init__(self,cards=None,bid=None,parent=None,player_type=None):
         super().__init__()
         self.relations = {'fold':None,'call':None,'bet':None}
-        self.parent = None
-        self.card_context = [] 
+        self.parent = parent
+        if cards is None:
+            self.card_context = []
+        else:
+            self.card_context = cards
+        self.bid = bid
+        self.player_type = player_type
 
     def set_card_context(self,cards):
         self.card_context = cards
@@ -53,15 +59,29 @@ class PlayerNode(GenericNode):
     def get_parent(self):
         return self.parent
 
+    def set_bid(self,bid):
+        self.bid = bid
+        return None
+
+    def get_bid(self):
+        return self.bid
+
+    def set_player_type(self,player_type):
+        self.player_type = player_type
+        return None 
+
+    def get_player_type(self):
+        return self.player_type
+
     def __repr__(self):
-        return 'node ' + str(self.id) + ' {}'.format(str(self.get_card_context()))
+        return 'node ' + str(self.id) + ' {} - {} - '.format(self.player_type,self.bid) + ' {}'.format(str(self.get_card_context()))
 
 class MCST_Set():
     def __init__(self):
         self.game_types = {}
 
-    def all_hands(self):
-        return list(self.pre_flops.keys())
+    def all_games(self):
+        return list(self.game_types.keys())
 
     def add_game(self,number_of_players):
         if number_of_players not in self.game_types:
@@ -118,6 +138,30 @@ class MCST(object):
         self.card_context = cards 
         return None
 
+    def create_player_node(self,player_type=None,bid=None):
+        cards = self.get_player_hand()
+        new_node = PlayerNode(cards=cards,player_type=player_type,bid=bid)
+        return new_node
+
+    def build(self,compute_time=None):
+        if compute_time is None:
+            raise Exception("You didn't specify a compute or step limit for MCTS")
+        if compute_time < 1:
+            raise Exception("You have to run simulation for at least 1 second")
+        if self.turn_order is None:
+            raise Exception("Building a tree requires an active player..provide a turn order")
+
+        turn_order_provided = self.get_turn_order()[:]
+
+        start = time.time()
+        elapsed_time = 0
+
+        while elapsed_time < compute_time:
+            end = time.time()
+            elapsed_time = end - start
+
+        return None
+
     def query(self,query):
 
         active_players = self.get_turn_order()[:]
@@ -127,9 +171,7 @@ class MCST(object):
         active_connection = action_type
 
         if self.get_root() is None:
-            cards = self.get_player_hand()
-            active_node = PlayerNode()
-            active_node.set_card_context(cards)
+            active_node = self.create_player_node(player_type,bid)
             self.set_root(active_node)
 
         active_node = self.get_root()
@@ -138,9 +180,7 @@ class MCST(object):
             if q[0] == 'player':
                 node_type, player_type, action_type, bid = q
                 if active_node.relations[active_connection] is None:
-                    cards = self.get_player_hand()
-                    new_node = PlayerNode()
-                    new_node.set_card_context(cards)
+                    new_node = self.create_player_node(player_type,bid)
                     active_node.relations[active_connection] = new_node
                     new_node.parent = active_node
                 active_node = active_node.relations[active_connection] 
@@ -153,7 +193,6 @@ class MCST(object):
             print(active_node)
             active_node = active_node.parent 
             
-
         return None
 
     def __repr__(self): 
