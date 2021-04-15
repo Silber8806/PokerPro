@@ -34,6 +34,7 @@ class simpleLearnerPlayer(GenericPlayer):
         print('______________________________________________________________________')
         print('______________________________________________________________________')
         
+        
         if len(self.balance_history)==0:
             
             self.number_of_finished_games=0
