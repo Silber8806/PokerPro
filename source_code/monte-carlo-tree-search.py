@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import math
 import itertools
 import collections
@@ -100,7 +101,7 @@ class PlayerNode(object):
 
     id_iter = itertools.count()
 
-    def __init__(self,player_type,card_context=None,turn_context=None,restrict_raises=False):
+    def __init__(self,player_type,card_context=None,turn_context=None,restrict_raises=False,card_phase=None,leaf_node=False,player_action=None):
         self.id = next(self.id_iter)
         self.restrict_raises = restrict_raises
         if self.restrict_raises:
@@ -109,14 +110,31 @@ class PlayerNode(object):
             self.relations = {'fold':None,'call':None,'bet':None}
         self.card_context = card_context
         self.turn_context = turn_context
-        self.parent = None
+        self.card_phase = card_phase
         self.player_type = player_type
+        self.leaf_node = leaf_node
+        self.player_action = player_action
+        self.parent = None
         self.last_turn = None
         self.bid_round = None
+        self.debug = 0
         
+    def get_parent_chain(self):
+        parents = []
+        active_node = self 
+        while active_node.parent is not None:
+            parents.insert(0,active_node.parent.player_action)
+            active_node = active_node.parent
+        return parents
 
     def __repr__(self):
-        return 'node ' + str(self.id)
+        parents = self.get_parent_chain()
+        parents.append(self.id)
+        if self.debug == 1:
+            listing = "({}) => ({}:{}:{}) => ({}) => \n\t({})".format(parents,self.card_phase,self.player_type,self.player_action,self.leaf_node,self.card_context)
+        else:
+            listing = "({}:{})".format(self.card_phase,parents)
+        return listing
 
 class MCST(object):
     def __init__(self,number_of_players):
@@ -125,7 +143,7 @@ class MCST(object):
         self.cards = ()
         self.turn_order = None
         self.actions = ['fold','call','bet']
-        self.root = PlayerNode(player_type='start')
+        self.root = PlayerNode(player_type='start',leaf_node=False)
 
     def get_root(self):
         return self.root
@@ -133,31 +151,61 @@ class MCST(object):
     def select_node(self,node):
         turn_order = list(node.turn_context)
         cards = node.card_context
+        card_phase = node.card_phase 
 
         print(node)
 
+        if node.player_type == 'start' and node.leaf_node == True:
+            return 'done'
+
         if len(turn_order) == 1:
-            return None
+            if node.parent is not None:
+                return self.select_node(node.parent)
 
         unfullfilled_actions = []
         fullfilled_actions = []
+        possible_actions = len(node.relations.keys())
 
+        closed_nodes = 0
         for action in node.relations:
             connected_node = node.relations[action]
             if connected_node is None:
                 unfullfilled_actions.append(action)
-            elif len(connected_node.turn_context) > 1:
+            elif len(connected_node.turn_context) > 1 and connected_node.leaf_node is False:
                 fullfilled_actions.append(action)
+            elif connected_node.leaf_node is True:
+                closed_nodes += 1
 
-        fullfilled_actions = [rels for rels in node.relations if node.relations[rels] is not None]
+        if possible_actions == closed_nodes:
+            node.leaf_node = True
+            if node.parent is not None:
+                return self.select_node(node.parent)
 
         if len(unfullfilled_actions):
             action_to_update = random.choice(unfullfilled_actions)
-
             new_player_type = turn_order[0]
 
             last_turn = copy.deepcopy(node.last_turn)
             bid_round = copy.deepcopy(node.bid_round)
+
+            new_card_action = 1
+            for player in last_turn:
+                if last_turn[player] is None or last_turn[player] == 'bet':
+                    new_card_action=0
+
+            if new_card_action == 1:
+                for player in last_turn:
+                    if last_turn[player] != 'fold':
+                        bid_round[player] = 0
+                        last_turn[player] = None
+                cards =  tuple(list(cards) + [1])
+                card_phase += 1
+
+            if card_phase == 4:
+                node.leaf_node = True
+                print("reached end game")
+                if node.parent is not None:
+                    return self.select_node(node.parent)
 
             if action_to_update == 'fold':
                 turn_order.pop(0)
@@ -176,31 +224,41 @@ class MCST(object):
             else:
                 restrict_raises=False 
 
+            if len(new_turn_order) == 1:
+                set_as_leaf_node = True
+            else:
+                set_as_leaf_node = False
+
             new_node = PlayerNode(
                 player_type=new_player_type,
+                player_action=action_to_update,
                 card_context=cards,
                 turn_context=new_turn_order,
-                restrict_raises=restrict_raises
+                restrict_raises=restrict_raises,
+                card_phase=card_phase,
+                leaf_node=set_as_leaf_node
             )
 
+            self.node_count = new_node.id + 1
             new_node.last_turn = last_turn
             new_node.bid_round = bid_round
-
-            node.relations[action_to_update] = new_node
             new_node.parent = node
-
-            print("added node: {}".format(str(new_node)))
-
+            node.relations[action_to_update] = new_node
+            
             return new_node
         else:
             relationship_to_visit = random.choice(fullfilled_actions)
             node_to_visit = node.relations[relationship_to_visit]
-            print("visited node: {}".format(str(node_to_visit)))
             self.select_node(node_to_visit)
 
         return None 
 
     def simulate_node(self,node):
+        if node.player_type == 'current':
+            print("current_player")
+            print(node.card_context)
+        else:
+            print("opponent")
         return None
 
     def back_propogate_node(self,node):
@@ -217,6 +275,7 @@ class MCST(object):
         root.card_context = hand
         root.last_turn = {player:None for player in turn_order}
         root.bid_round = {player:0 for player in turn_order}
+        root.card_phase=0
 
         start = time.time()
         elapsed_time = 0
@@ -224,10 +283,15 @@ class MCST(object):
         i = 0
         while elapsed_time < compute_time:
             end = time.time()
-            self.select_node(root)
+            new_node = self.select_node(root)
+            if new_node == 'done':
+                print("simulated every possible combo")
+                break
+            #self.simulate_node(new_node)
+            #self.back_propogate_node(new_node)
             elapsed_time = end - start
             i = i + 1
-            if i > 5:
+            if i > 100000:
                 break
 
         return None
@@ -259,6 +323,6 @@ if __name__ == '__main__':
     trees = MCST_Set()
     trees.add_game(number_of_players)
     current_MCST = trees.get_game(number_of_players)
-    current_MCST.build(compute_time=1,turn_order=turn_order,hand=hand)
+    current_MCST.build(compute_time=1000,turn_order=turn_order,hand=hand)
     print(current_MCST)
 
