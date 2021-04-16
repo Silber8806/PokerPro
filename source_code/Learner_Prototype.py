@@ -33,7 +33,7 @@ class simpleLearnerPlayer(GenericPlayer):
         """
         print('______________________________________________________________________')
         print('______________________________________________________________________')
-        
+
         
         if len(self.balance_history)==0:
             
@@ -88,6 +88,7 @@ use_parallel = 0 # would not recommend using use_cache=1 on function simulate_wi
 
 if __name__ == '__main__':
     print("starting poker simulation...(set debug=1 to see messages)")
+
 
     if debug == 1 and use_parallel == 1:
         raise Exception("Parallelism (use_parallel=1) is not supported with debug mode (debug=1)...set debug to 0")
