@@ -129,7 +129,7 @@ class PlayerNode(object):
 
     def __repr__(self):
         parents = self.get_parent_chain()
-        parents.append(self.player_action)
+        parents.append(self.id)
         if self.debug == 1:
             listing = "({}) => ({}:{}:{}) => ({}) => \n\t({})".format(parents,self.card_phase,self.player_type,self.player_action,self.leaf_node,self.card_context)
         else:
@@ -143,7 +143,7 @@ class MCST(object):
         self.cards = ()
         self.turn_order = None
         self.actions = ['fold','call','bet']
-        self.root = PlayerNode(player_type='start')
+        self.root = PlayerNode(player_type='start',leaf_node=False)
 
     def get_root(self):
         return self.root
@@ -152,6 +152,11 @@ class MCST(object):
         turn_order = list(node.turn_context)
         cards = node.card_context
         card_phase = node.card_phase 
+
+        print(node)
+
+        if node.player_type == 'start' and node.leaf_node == True:
+            return 'done'
 
         if len(turn_order) == 1:
             if node.parent is not None:
@@ -234,6 +239,7 @@ class MCST(object):
                 leaf_node=set_as_leaf_node
             )
 
+            self.node_count = new_node.id + 1
             new_node.last_turn = last_turn
             new_node.bid_round = bid_round
             new_node.parent = node
@@ -248,6 +254,11 @@ class MCST(object):
         return None 
 
     def simulate_node(self,node):
+        if node.player_type == 'current':
+            print("current_player")
+            print(node.card_context)
+        else:
+            print("opponent")
         return None
 
     def back_propogate_node(self,node):
@@ -272,10 +283,15 @@ class MCST(object):
         i = 0
         while elapsed_time < compute_time:
             end = time.time()
-            self.select_node(root)
+            new_node = self.select_node(root)
+            if new_node == 'done':
+                print("simulated every possible combo")
+                break
+            #self.simulate_node(new_node)
+            #self.back_propogate_node(new_node)
             elapsed_time = end - start
             i = i + 1
-            if i > 10000:
+            if i > 100000:
                 break
 
         return None
