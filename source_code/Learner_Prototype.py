@@ -3,6 +3,47 @@ from poker import *
 class simpleLearnerPlayer(GenericPlayer):
     def policy():
         return 0
+    def simpleLearnerCall(self,hand):
+        """
+        Made this function to make the decision for making call,fold and raise
+        """
+        hand_rank=[x for x,y in hand]
+        hand_suit=[y for x,y in hand]
+        
+        if hand_suit[0]==hand_suit[1]:
+            same_suit='Y'
+        else:
+            same_suit='N'
+        self.dictionary_key=[hand_rank[0]+hand_rank[1]+same_suit,hand_rank[1]+hand_rank[0]+same_suit]#saving the previous hand dictionary
+        #using same probability to play for first hand
+        chance=random.random()
+        if self.hand_dictionary[self.dictionary_key[0]]['sum_absolute_bet']==0:
+            #print('first time this hand being played')
+            if chance<0.33:
+                print('first time randomply folding')
+                self.fold_bet()
+            elif chance>=0.33 and chance<0.66:
+                print('first time randomply calling')
+                self.call_bet()
+            else:
+                print('first time randomply raising 20')
+                self.raise_bet(20)
+        else:
+            print('repeated hand*************************************',self.hand_dictionary[self.dictionary_key[0]]['sum_bet'])
+            print('repeated absolute gain/lost',self.hand_dictionary[self.dictionary_key[0]]['sum_absolute_bet'])
+            if self.hand_dictionary[self.dictionary_key[0]]['sum_bet']>0:
+                raise_amount=round(100*self.hand_dictionary[self.dictionary_key[0]]['sum_bet']/self.hand_dictionary[self.dictionary_key[0]]['sum_absolute_bet'],0)
+                print('reapeated winning hand,raising by',raise_amount)
+                self.raise_bet(raise_amount)
+            else:
+                if chance<0.2:
+                    print('reapeated losing hand playing')
+                    self.call_bet()
+                else:
+                    print('repeated losing hand, folding')
+                    self.fold_bet()
+        
+        
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
         """
         This player is a very simple learner, it looks at the first two card and make the decision on
@@ -31,55 +72,39 @@ class simpleLearnerPlayer(GenericPlayer):
         make the function for making it suitless. get the card and make it suitless.
 
         """
-        print('______________________________________________________________________')
-        print('______________________________________________________________________')
-
+        
+        
         
         if len(self.balance_history)==0:
-            
             self.number_of_finished_games=0
-        
+            if river is None: #only making bet on the first hand when river is Null
+                print('______________________________________________________________________')
+                print('hand',hand)
+                #print('river',river)
+                #print('river is Null')
+                self.simpleLearnerCall(hand)
         
         elif len(self.balance_history)>self.number_of_finished_games:
-            number_of_game=len(self.balance_history)
-            print('card1 is ',self.balance_history)
-            #print('last_item is', self.balance_history[-1][-1])
-            self.number_of_finished_games=len(self.balance_history)
-            #print(self.number_of_finished_games)
-        hand_rank=[x for x,y in hand]
-        hand_suit=[y for x,y in hand]
-
-        
-        if hand_suit[0]==hand_suit[1]:
-            same_suit='Y'
-        else:
-            same_suit='N'
-        dictionary_key=[hand_rank[0]+hand_rank[1]+same_suit,hand_rank[1]+hand_rank[0]+same_suit]
-        #using same probability to play for first hand
-        #print('dictionary is ',self.hand_dictionary[dictionary_key[0]]['sum_absolute_bet'])
-        print('river is ',river)
-        if self.hand_dictionary[dictionary_key[0]]['sum_absolute_bet']==0:
-            chance=random.random()
-            if chance<0.33:
-                self.fold_bet()
-            elif chance>=0.33 and chance<0.66:
-                self.call_bet()
-            else:
-                self.raise_bet(20)
-        else:
-            if self.hand_dictionary[0]['sum_bet']>0:
-                self.raise_bet(round(100*self.hand_dictionary[0]['sum_bet']/self.hand_dictionary[0]['sum_absolute_bet'],0))
-            else:
-                if chance<0.2:
-                    self.call_bet()
-                else:
-                    self.fold_bet()
-        
-        
-        print('current pot is',pot)
-        print(random.random())
-        #print([x(card.rank) for x in hand])
-        #sys.exit(0)
+            if river is None:
+                print('______________________________________________________________________')
+                print('hand',hand)
+                #print('river',river)
+                #print('river is Null')
+                print('player previou hand',self.dictionary_key)
+                print('previous gain-lost is ',self.balance_history[0][8])
+                for i in range(2):#setting dictionary for both combination
+                    self.hand_dictionary[self.dictionary_key[i]]['sum_absolute_bet']+=abs(self.balance_history[0][8])#updating hand dictionary
+                    self.hand_dictionary[self.dictionary_key[i]]['sum_bet']+=self.balance_history[0][8]
+                self.simpleLearnerCall(hand)
+                number_of_game=len(self.balance_history)
+                #print('card1 is ',self.balance_history)
+                #print('last_item is', self.balance_history[-1][-1])
+                self.number_of_finished_games=len(self.balance_history)
+                #print(self.number_of_finished_games)
+                #print('current pot is',pot)
+                print('number of finished games are',self.number_of_finished_games)
+            #print([x(card.rank) for x in hand])
+            #sys.exit(0)
 
 debug = 0 # to see detailed messages of simulation, put this to 1, think verbose mode
 use_parallel = 0 # would not recommend using use_cache=1 on function simulate_win_odds due to not knowing if globals are thread or process safe.
@@ -96,7 +121,7 @@ if __name__ == '__main__':
     # defines all the simulations we will run
     simulations = {
        'tables': 1, # number of poker tables simulated
-       'hands': 10, # number of hands the dealer will player, has to be greater than 2
+       'hands': 100, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run    
@@ -104,7 +129,7 @@ if __name__ == '__main__':
                 'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysRaisePlayer, # defines strategy of player 2
+                    #AlwaysRaisePlayer, # defines strategy of player 2
                     #CalculatedPlayer, # defines strategy of player 3
                     #GambleByProbabilityPlayer, # defines strategy of player 4
                     #ConservativePlayer, # defines strategy of player 5
