@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-
 import math
 import itertools
 import collections
 import time
+import random
+import copy
+
+from poker import *
 
 Card = collections.namedtuple('Card', ['rank', 'suit'])
 
@@ -19,62 +22,56 @@ def UCB(wins,games,parent_total,constant):
         raise Exception("UCB requires games or parent total")
     return wins / games + constant * math.sqrt(math.log(parent_total)/games)
 
-class GenericNode(object):
+def monte_carlo_simulation(cards,river,opponents,runtimes=1):
+    """
+        A player can use this to simulate the odds of them winning a hand of poker.
+        You give it your current hand (cards variable), the current river, which is
+        either: None (pre-flob), 3,4,5 for post-flop.  The odds change with the 
+        number of opponents, so you need to add it to.  You do this for
+        runtime number of times and report the percent of wins.  YOu can 
+        think of it as a monte-carlo simulation
+    """
+    deck = FrenchDeck()
 
-    id_iter = itertools.count()
+    # enabling cache means if same hand + river show up, use the latest odds and skip calc
+    # bad thing about this is if you get a 1% percentile win-rate on a flop etc, than 
+    # that becomes baked into simulation.  So disable cache == better results, enable
+    # cache means quicker results.
 
-    def __init__(self):
-        self.id = next(self.id_iter)
-        self.card_states = {}
+    if river is None:
+        river = []  # this is a pre-flob situation
 
-    def get_card_state(self):
-        return self.card_states
+    for card in cards + river:
+        deck.remove_card(rank=card.rank,suit=card.suit) # remove the players hand and river from the deck
 
-    def __repr__(self):
-        return 'node ' + str(self.id)
+    deck.save_deck() # the deck with removed cards is our start point for simulating everything.  So save it and reload after each runtime.
 
-class PlayerNode(GenericNode):
-    def __init__(self,cards=None,bid=None,parent=None,player_type=None):
-        super().__init__()
-        self.relations = {'fold':None,'call':None,'bet':None}
-        self.parent = parent
-        if cards is None:
-            self.card_context = []
+    start_hand = cards # your hand
+    draw_player = len(cards) # all peoples hands
+    draw_river = 5 - len(river) # current number of cards left to draw in the river
+
+    wins = 0
+    for _ in range(runtimes):
+        hands_to_compare = []
+        if len(river) < 5:
+            new_river = deck.draw(draw_river) # draw the river
         else:
-            self.card_context = cards
-        self.bid = bid
-        self.player_type = player_type
+            new_river = [] # you already drew the river (all 5 cards)
+        current_river = river[:] + new_river # river with simulated cards
+        player_hand = start_hand[:] + current_river[:]  # your hand including simulated river
+        hands_to_compare.append(player_hand) # your hand is always first
+        for _ in range(opponents):
+            opponent_hand = deck.draw(draw_player) + current_river[:] # create opponents hands
+            hands_to_compare.append(opponent_hand) # add after your hand
+        is_win = winning_hand(hands_to_compare) # rank the hands, check if first one won
 
-    def set_card_context(self,cards):
-        self.card_context = cards
-        return None
+        if is_win:
+            wins += 1 # keep tabs of your wins
 
-    def get_card_context(self):
-        return self.card_context
+        deck.load_deck() # reset the deck for the next simulation
+        deck.reshuffle_draw_deck()
 
-    def set_parent(self,node):
-        self.parent = node 
-        return None 
-
-    def get_parent(self):
-        return self.parent
-
-    def set_bid(self,bid):
-        self.bid = bid
-        return None
-
-    def get_bid(self):
-        return self.bid
-
-    def set_player_type(self,player_type):
-        self.player_type = player_type
-        return None 
-
-    def get_player_type(self):
-        return self.player_type
-
-    def __repr__(self):
-        return 'node ' + str(self.id) + ' {} - {} - '.format(self.player_type,self.bid) + ' {}'.format(str(self.get_card_context()))
+    return (wins, runtimes) # your percent wins
 
 class MCST_Set():
     def __init__(self):
@@ -99,100 +96,143 @@ class MCST_Set():
             message += '\n' + str(MCTS) 
         return message
 
+class PlayerNode(object):
+
+    id_iter = itertools.count()
+
+    def __init__(self,player_type,card_context=None,turn_context=None,restrict_raises=False):
+        self.id = next(self.id_iter)
+        self.restrict_raises = restrict_raises
+        if self.restrict_raises:
+            self.relations = {'fold':None,'call':None}
+        else:
+            self.relations = {'fold':None,'call':None,'bet':None}
+        self.card_context = card_context
+        self.turn_context = turn_context
+        self.parent = None
+        self.player_type = player_type
+        self.last_turn = None
+        self.bid_round = None
+        
+
+    def __repr__(self):
+        return 'node ' + str(self.id)
+
 class MCST(object):
     def __init__(self,number_of_players):
         self.number_of_players = number_of_players
-        self.hand_context = None 
-        self.card_context = ()
+        self.hand = None 
+        self.cards = ()
         self.turn_order = None
-        self.root = None
-
-    def set_root(self,node):
-        self.root = node 
-        return None 
+        self.actions = ['fold','call','bet']
+        self.root = PlayerNode(player_type='start')
 
     def get_root(self):
         return self.root
 
-    def get_turn_order(self):
-        return self.turn_order
+    def select_node(self,node):
+        turn_order = list(node.turn_context)
+        cards = node.card_context
 
-    def set_turn_order(self,turn_order):
-        self.turn_order = turn_order
+        print(node)
+
+        if len(turn_order) == 1:
+            return None
+
+        unfullfilled_actions = []
+        fullfilled_actions = []
+
+        for action in node.relations:
+            connected_node = node.relations[action]
+            if connected_node is None:
+                unfullfilled_actions.append(action)
+            elif len(connected_node.turn_context) > 1:
+                fullfilled_actions.append(action)
+
+        fullfilled_actions = [rels for rels in node.relations if node.relations[rels] is not None]
+
+        if len(unfullfilled_actions):
+            action_to_update = random.choice(unfullfilled_actions)
+
+            new_player_type = turn_order[0]
+
+            last_turn = copy.deepcopy(node.last_turn)
+            bid_round = copy.deepcopy(node.bid_round)
+
+            if action_to_update == 'fold':
+                turn_order.pop(0)
+                bid_round[new_player_type] = 3
+            else:
+                bid_round[new_player_type] += 1
+
+            last_turn[new_player_type] = action_to_update
+            new_turn_order = turn_order[1:] + turn_order[0:1]
+
+            next_player = new_turn_order[0]
+            next_player_bid = bid_round[next_player]
+
+            if next_player_bid == 2:
+                restrict_raises=True 
+            else:
+                restrict_raises=False 
+
+            new_node = PlayerNode(
+                player_type=new_player_type,
+                card_context=cards,
+                turn_context=new_turn_order,
+                restrict_raises=restrict_raises
+            )
+
+            new_node.last_turn = last_turn
+            new_node.bid_round = bid_round
+
+            node.relations[action_to_update] = new_node
+            new_node.parent = node
+
+            print("added node: {}".format(str(new_node)))
+
+            return new_node
+        else:
+            relationship_to_visit = random.choice(fullfilled_actions)
+            node_to_visit = node.relations[relationship_to_visit]
+            print("visited node: {}".format(str(node_to_visit)))
+            self.select_node(node_to_visit)
+
+        return None 
+
+    def simulate_node(self,node):
         return None
 
-    def get_player_hand(self):
-        return self.hand_context + self.card_context
-
-    def get_hand_context(self):
-        return self.hand_context
-
-    def set_hand_context(self, hand_context):
-        self.hand_context = hand_context 
+    def back_propogate_node(self,node):
         return None
 
-    def get_card_context(self):
-        return self.card_context
-
-    def set_card_context(self,cards):
-        self.card_context = cards 
-        return None
-
-    def create_player_node(self,player_type=None,bid=None):
-        cards = self.get_player_hand()
-        new_node = PlayerNode(cards=cards,player_type=player_type,bid=bid)
-        return new_node
-
-    def build(self,compute_time=None):
+    def build(self,turn_order,hand,compute_time=1):
         if compute_time is None:
             raise Exception("You didn't specify a compute or step limit for MCTS")
         if compute_time < 1:
             raise Exception("You have to run simulation for at least 1 second")
-        if self.turn_order is None:
-            raise Exception("Building a tree requires an active player..provide a turn order")
 
-        turn_order_provided = self.get_turn_order()[:]
+        root = self.get_root()
+        root.turn_context = turn_order
+        root.card_context = hand
+        root.last_turn = {player:None for player in turn_order}
+        root.bid_round = {player:0 for player in turn_order}
 
         start = time.time()
         elapsed_time = 0
 
+        i = 0
         while elapsed_time < compute_time:
             end = time.time()
+            self.select_node(root)
             elapsed_time = end - start
+            i = i + 1
+            if i > 5:
+                break
 
         return None
 
-    def query(self,query):
-
-        active_players = self.get_turn_order()[:]
-
-        query_iter = iter(query)
-        node_type, player_type, action_type, bid = next(query_iter)
-        active_connection = action_type
-
-        if self.get_root() is None:
-            active_node = self.create_player_node(player_type,bid)
-            self.set_root(active_node)
-
-        active_node = self.get_root()
-
-        for q in query_iter:
-            if q[0] == 'player':
-                node_type, player_type, action_type, bid = q
-                if active_node.relations[active_connection] is None:
-                    new_node = self.create_player_node(player_type,bid)
-                    active_node.relations[active_connection] = new_node
-                    new_node.parent = active_node
-                active_node = active_node.relations[active_connection] 
-                active_connection = action_type
-            else:
-                node_type, cards = q
-                self.set_card_context(cards)
-
-        while active_node.parent is not None:
-            print(active_node)
-            active_node = active_node.parent 
-            
+    def query(self,query_set):
         return None
 
     def __repr__(self): 
@@ -214,15 +254,11 @@ if __name__ == '__main__':
     print("starting MCTS")
     number_of_players = 2
     turn_order = ('current', 'opponent 1')
-    cards = (Card(rank='9', suit='spades'), Card(rank='A', suit='spades'))
+    hand = (Card(rank='9', suit='spades'), Card(rank='A', suit='spades'))
 
     trees = MCST_Set()
     trees.add_game(number_of_players)
     current_MCST = trees.get_game(number_of_players)
-    current_MCST.set_turn_order(turn_order)
-    current_MCST.set_hand_context(cards)
-    current_MCST.query(query_set)
+    current_MCST.build(compute_time=1,turn_order=turn_order,hand=hand)
+    print(current_MCST)
 
-    current_MCST.get_root()
-
-    print(trees)
