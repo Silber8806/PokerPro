@@ -14,34 +14,54 @@ class simpleLearnerPlayer(GenericPlayer):
             same_suit='Y'
         else:
             same_suit='N'
-        self.dictionary_key=[hand_rank[0]+hand_rank[1]+same_suit,hand_rank[1]+hand_rank[0]+same_suit]#saving the previous hand dictionary
+        self.dictionary_key=[hand_rank[0]+hand_rank[1]+same_suit,hand_rank[1]+hand_rank[0]+same_suit,'action']#saving the previous hand dictionary and action
         #using same probability to play for first hand
         chance=random.random()
         if self.hand_dictionary[self.dictionary_key[0]]['sum_absolute_bet']==0:
             #print('first time this hand being played')
             if chance<0.33:
                 print('first time randomply folding')
+                self.dictionary_key[2]='fold'
                 self.fold_bet()
             elif chance>=0.33 and chance<0.66:
                 print('first time randomply calling')
+                self.dictionary_key[2]='call'
                 self.call_bet()
             else:
                 print('first time randomply raising 20')
+                self.dictionary_key[2]='raise'
                 self.raise_bet(20)
         else:
             print('repeated hand*************************************',self.hand_dictionary[self.dictionary_key[0]]['sum_bet'])
             print('repeated absolute gain/lost',self.hand_dictionary[self.dictionary_key[0]]['sum_absolute_bet'])
-            if self.hand_dictionary[self.dictionary_key[0]]['sum_bet']>0:
-                raise_amount=round(100*self.hand_dictionary[self.dictionary_key[0]]['sum_bet']/self.hand_dictionary[self.dictionary_key[0]]['sum_absolute_bet'],0)
+            action=self.hand_dictionary[self.dictionary_key[0]]['sum_bet'].argmax()
+            #if self.hand_dictionary[self.dictionary_key[0]]['sum_bet']>0:
+            if action==0:    
+                print('reapeated losing hand playing folding the hand')
+                self.fold_bet()
+            elif action==1:
+                print('repeated winning game , calling the et')
+                self.call_bet()
+            else:
+                raise_amount=20#round(100*self.hand_dictionary[self.dictionary_key[0]]['sum_bet']/self.hand_dictionary[self.dictionary_key[0]]['sum_absolute_bet'],0)
                 print('reapeated winning hand,raising by',raise_amount)
                 self.raise_bet(raise_amount)
-            else:
-                if chance<0.2:
-                    print('reapeated losing hand playing')
-                    self.call_bet()
-                else:
-                    print('repeated losing hand, folding')
-                    self.fold_bet()
+               
+    def update_SimpleLearnerReward(self):
+        if self.dictionary_key[2]=='fold':
+                    for i in range(2):#setting dictionary for both combination
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_absolute_bet']+=abs(self.balance_history[0][8])#updating hand dictionary
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_bet']+=np.array([self.balance_history[0][8],0,0])
+        elif self.dictionary_key[2]=='call':
+                    for i in range(2):#setting dictionary for both combination
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_absolute_bet']+=abs(self.balance_history[0][8])#updating hand dictionary
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_bet']+=np.array([0,self.balance_history[0][8],0])
+        elif self.dictionary_key[2]=='raise':
+                    for i in range(2):#setting dictionary for both combination
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_absolute_bet']+=abs(self.balance_history[0][8])#updating hand dictionary
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_bet']+=np.array([0,0,self.balance_history[0][8]])
+        else:
+            raise Exception('Action must select between fold, call or raise actions')
         
         
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
@@ -92,9 +112,9 @@ class simpleLearnerPlayer(GenericPlayer):
                 #print('river is Null')
                 print('player previou hand',self.dictionary_key)
                 print('previous gain-lost is ',self.balance_history[0][8])
-                for i in range(2):#setting dictionary for both combination
-                    self.hand_dictionary[self.dictionary_key[i]]['sum_absolute_bet']+=abs(self.balance_history[0][8])#updating hand dictionary
-                    self.hand_dictionary[self.dictionary_key[i]]['sum_bet']+=self.balance_history[0][8]
+                #updating the reward 
+                update_SimpleLearnerReward()
+                
                 self.simpleLearnerCall(hand)
                 number_of_game=len(self.balance_history)
                 #print('card1 is ',self.balance_history)
