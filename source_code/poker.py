@@ -640,7 +640,7 @@ class GenericPlayer(object):
         self.won_game = 0
         self.final_hand = None
         self.blind_type = 'None'
-        self.hand_dictionary=0#{i+j+k:{'sum_absolute_bet':0,'sum_bet':np.array([10.2,20.1,1.3],dtype=float)} for i in(Ranks) for j in(Ranks) for k in(['N','Y'])}
+        self.hand_dictionary={i+j+k:{'sum_absolute_bet':0,'sum_bet':np.array([0,0,0],dtype=float)} for i in(Ranks) for j in(Ranks) for k in(['N','Y'])}
         self.current_game = None
         self.active_game = None
         self.pre_flob_wins = {}
