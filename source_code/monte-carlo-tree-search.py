@@ -138,6 +138,7 @@ class PlayerNode(object):
         self.card_wins = {}
         self.card_totals = {}
         self.new_phase = new_phase
+        self.back_propogation_list = []
         
     def get_parent_chain(self):
         parents = []
@@ -182,8 +183,6 @@ class MCST(object):
         turn_order = list(node.turn_context)
         cards = node.card_context
         card_phase = node.card_phase 
-
-        print(node)
 
         if len(turn_order) == 1:
             if node.parent is not None:
@@ -332,50 +331,87 @@ class MCST(object):
             return self.select_node(node_to_visit)
 
     def simulate_node(self,node):
+
+        node.back_propogation_list = {}
+
+        print("simulating: node {}".format(node.id))
+
         if node.player_type == 'current' and node.player_action != 'fold':
             active_opponents = len(node.turn_context)
             hand = node.card_context[:2]
+            simulation_runtimes = 10
+            card_expansion_runtimes = 100
+
             if len(node.card_context) == 2:
                 river = []
+                hand, river = list(hand),list(river)
+                wins, total = monte_carlo_simulation(cards=hand,river=river,opponents=active_opponents,runtimes=simulation_runtimes)
+
+                propogation_key = tuple(hand)
+                node.back_propogation_list[propogation_key] = {"wins":wins,"total":total}
             else:
                 river = node.card_context[3:]
-            hand, river = list(hand),list(river)
-            wins, total = monte_carlo_simulation(cards=hand,river=river,opponents=active_opponents,runtimes=1)
 
-            update_keys = node.card_context
-            node.card_wins[update_keys] = wins 
-            node.card_totals[update_keys] = total
+                hand, river = list(hand),list(river)
+                wins, total = monte_carlo_simulation(cards=hand,river=river,opponents=active_opponents,runtimes=simulation_runtimes)
+
+                propagation_key = tuple(hand + river)
+                node.back_propogation_list[propagation_key] = {"wins":wins,"total":total}
+
+                deck = FrenchDeck()
+
+                for card in hand:
+                    deck.remove_card(rank=card.rank,suit=card.suit) # remove the players hand and river from the deck
+
+                deck.save_deck()
+
+                cards_to_draw = len(river)
+                for _ in range(0,card_expansion_runtimes):
+                    new_river = deck.draw(cards_to_draw)
+                    wins, total = monte_carlo_simulation(cards=hand,river=new_river,opponents=active_opponents,runtimes=simulation_runtimes)
+
+                    propagation_key = tuple(hand + new_river)
+                    node.back_propogation_list[propagation_key] = {"wins":wins,"total":total}
+
+                    deck.load_deck()
+                    deck.reshuffle_draw_deck()
+                    
         else:
-            update_keys = node.card_context
-            node.card_wins[update_keys] = 0 
-            node.card_totals[update_keys] = 0
+            propagation_key = node.card_context
+            node.back_propogation_list[propagation_key] = {"wins":0,"total":0}
         return None
 
     def back_propogate_node(self,node):
-        if node.player_type == 'current' and node.player_action != 'fold':
-            cards_to_update = node.card_context
-            wins = node.card_wins[cards_to_update]
-            total = node.card_totals[cards_to_update]
-            
+        card_updates_to_propogate = node.back_propogation_list
+        
+        print("updating node: {}".format(node.id))
+        print("propogation rules: {}".format(len(card_updates_to_propogate.keys())))
+        print('player_type: {} - {}'.format(node.player_type, node.player_action))
+        for prop_key in card_updates_to_propogate:
+            print("updating prop rule: {}".format(prop_key))
             active_node = node 
-            while active_node.parent is not None:
+
+            new_wins = card_updates_to_propogate[prop_key]['wins']
+            new_total = card_updates_to_propogate[prop_key]['total']
+
+            while active_node is not None:
+                card_slots = active_node.card_slots
+                card_to_update = prop_key[:card_slots]
+
+                current_wins = active_node.card_wins.get(card_to_update,0) + new_wins
+                active_node.card_wins[card_to_update] = current_wins
+
+                current_totals = active_node.card_totals.get(card_to_update,0) + new_total
+                active_node.card_totals[card_to_update] = current_totals
+
+                print(active_node.id,active_node.card_totals[card_to_update])
                 active_node = active_node.parent
 
-                card_slots = active_node.card_slots
-                key_to_update = cards_to_update[:card_slots]
-
-                if key_to_update not in active_node.card_wins:
-                    active_node.card_wins[key_to_update] = wins 
-                else:
-                    active_node.card_wins[key_to_update] += wins
-
-                if key_to_update not in active_node.card_totals:
-                    active_node.card_totals[key_to_update] = total 
-                else:
-                    active_node.card_totals[key_to_update] += total
+        print("...")
+        print("finished")
         return None
 
-    def build(self,turn_order,hand,compute_time=1):
+    def build(self,turn_order,hand,compute_time=1,max_nodes=10):
         if compute_time is None:
             raise Exception("You didn't specify a compute or step limit for MCTS")
         if compute_time < 1:
@@ -401,12 +437,11 @@ class MCST(object):
             if new_node == 'done':
                 print("simulated every possible combo")
                 break
-            #print(new_node)
             self.simulate_node(new_node)
             self.back_propogate_node(new_node)
             elapsed_time = end - start
             i = i + 1
-            if i > 1000000:
+            if i > max_nodes:
                 break
 
         return None
@@ -441,12 +476,6 @@ if __name__ == '__main__':
     turn_order = ('current', 'opponent 1')
     hand = (Card(rank='9', suit='spades'), Card(rank='A', suit='spades'))
     current_MCST.build(compute_time=1000,turn_order=turn_order,hand=hand)
-
-    # print("\n" * 20)
-    # print("starting second simulation")
-    # turn_order = ('current', 'opponent 1')
-    # hand = (Card(rank='8', suit='spades'), Card(rank='A', suit='spades'))
-    # current_MCST.build(compute_time=1000,turn_order=turn_order,hand=hand)
 
     print(current_MCST.get_root().card_totals)
 
