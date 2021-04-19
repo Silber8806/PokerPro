@@ -6,6 +6,8 @@ import collections
 import time
 import random
 import copy
+import pickle
+import os
 
 from poker import *
 
@@ -88,6 +90,12 @@ class MCST_Set():
             self.game_types[turn_order] = MCST(turn_order)
         return None 
 
+    def has_game(self,turn_order):
+        if turn_order in self.game_types:
+            return True 
+        else: 
+            return False
+
     def get_game(self,turn_order):
         if turn_order not in self.game_types:
             self.add_game(turn_order)
@@ -151,7 +159,7 @@ class PlayerNode(object):
         return listing
 
 class MCST(object):
-    def __init__(self,turn_order,card_branching=100,monte_carlo_sims=100):
+    def __init__(self,turn_order,card_branching=100,monte_carlo_sims=1):
         self.turn_order = turn_order
         self.hand = None 
         self.cards = ()
@@ -442,29 +450,36 @@ class MCST(object):
     def __repr__(self): 
         return 'MCTS with {} players'.format(str(self.turn_order))
 
-query_set = [
-    ('player', 'current', 'call', 0), 
-    ('player', 'opponent 1', 'call', 0), 
-    ('card', (Card(rank='8', suit='hearts'), Card(rank='9', suit='hearts'), Card(rank='A', suit='clubs'))), 
-    ('player', 'current', 'call', 0), 
-    ('player', 'opponent 1', 'call', 0), 
-    ('card', (Card(rank='8', suit='hearts'), Card(rank='9', suit='hearts'), Card(rank='A', suit='clubs'), Card(rank='9', suit='diamonds'))), 
-    ('player', 'current', 'call', 0), 
-    ('player', 'opponent 1', 'call', 0), 
-    ('card', (Card(rank='8', suit='hearts'), Card(rank='9', suit='hearts'), Card(rank='A', suit='clubs'), Card(rank='9', suit='diamonds'), Card(rank='A', suit='hearts')))
-]
+query_set = {
+    'card_context': (Card(rank='9', suit='spades'), Card(rank='A', suit='spades')),
+    'decisions':[
+        ('current','bet',100),
+        ('opponent 1','call',0),
+        ('current','bet',100),
+        ('opponent 1','call',0)
+    ]
+}
 
 if __name__ == '__main__':
     print("starting MCTS")
     turn_order = ('current', 'opponent 1')
 
-    trees = MCST_Set()
-    trees.add_game(turn_order)
+    pickled_file = 'MCST.pickle'
+    if os.path.exists(pickled_file):
+        with open(pickled_file, 'rb') as handle:
+            trees = pickle.load(handle)
+    else:
+        trees = MCST_Set()
+        trees.add_game(turn_order)
+        current_MCST = trees.get_game(turn_order)
+
+        print("starting first simulation")
+        hand = (Card(rank='9', suit='spades'), Card(rank='A', suit='spades'))
+        current_MCST.build(compute_time=120,hand=hand,max_nodes=math.inf)
+
+        print(current_MCST.get_root().card_totals)
+
+        with open(pickled_file, 'wb') as handle:
+            pickle.dump(trees, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
     current_MCST = trees.get_game(turn_order)
-
-    print("starting first simulation")
-    hand = (Card(rank='9', suit='spades'), Card(rank='A', suit='spades'))
-    current_MCST.build(compute_time=1000,hand=hand,max_nodes=math.inf)
-
-    print(current_MCST.get_root().card_totals)
-

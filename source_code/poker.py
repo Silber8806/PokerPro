@@ -1814,7 +1814,6 @@ class MCST(object):
             self.simulate_node(new_node)
             self.back_propogate_node(new_node)
             elapsed_time = end - start
-            print(elapsed_time)
             i = i + 1
             if max_nodes != math.inf:
                 if i > max_nodes:
