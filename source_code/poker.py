@@ -1543,6 +1543,36 @@ class PlayerNode(object):
     def bet(self):
         return self.relations['bet']
 
+    def get_game_total(self, card):
+        game_total = 0
+        for card_set in self.card_totals:
+            if card_set[0:len(card)] == card:
+                game_total += self.card_totals[card_set]
+        return game_total
+
+    def get_win_total(self, card):
+        win_total = 0
+        for card_set in self.card_wins:
+            if card_set[0:len(card)] == card:
+                win_total += self.card_wins[card_set]
+        return win_total
+
+    def get_child_game_totals(self,card):
+        game_totals = {}
+        for action in self.relations:
+            node =  self.relations[action]
+            child_total = node.get_game_total(card)
+            game_totals[action] = child_total 
+        return game_totals
+
+    def get_child_win_totals(self,card):
+        win_totals = {}
+        for action in self.relations:
+            node =  self.relations[action]
+            child_total = node.get_win_total(card)
+            win_totals[action] = child_total 
+        return win_totals
+
     def __repr__(self):
         parents = self.parents
         parents.append(self.player_action)
@@ -1553,7 +1583,7 @@ class PlayerNode(object):
         return listing
 
 class MCST(object):
-    def __init__(self,turn_order,card_branching=10,monte_carlo_sims=10):
+    def __init__(self,turn_order,card_branching=10,monte_carlo_sims=100):
         self.turn_order = turn_order
         self.small_blind = turn_order[-2]
         self.big_blind = turn_order[-1]
@@ -1778,7 +1808,7 @@ class MCST(object):
                 else:
                     raise Exception("No card phase greater than 3")
 
-                river = self.card_context[3:]
+                river = self.card_context[2:]
                 current_river_cards = len(river)
 
                 hand, river = list(hand),list(river)
@@ -2000,7 +2030,6 @@ class MCST(object):
                     abridged_key.append(key[0:len(hand)])
                 if hand not in abridged_key:
                     self.update_node(node,hand)
-                    print(hand,node.card_phase)
                     self.simulate_node(node)
                     self.back_propogate_node(node)
 
@@ -2062,19 +2091,24 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
         return past_actions
 
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        print("starting bet strategy")
         beginning_players = self.get_turn_order()
         if not self.decision_tree.has_game(beginning_players):
+            print("new player configuration discovered")
             self.decision_tree.add_game(beginning_players)
             new_tree = self.decision_tree.get_game(beginning_players)
         else:
+            print('loadding old configuration')
             new_tree = self.decision_tree.get_game(beginning_players)
 
         if not new_tree.has_hand(hand):
+            print("new hand discovered...building")
             new_tree.build(cards=hand,compute_time=10,max_nodes=1000)
 
         if river is None:
             river = []
 
+        print("finding new decision node")
         path_query = self.past_player_actions()
         decision_node = new_tree.query(hand=hand,query_set=path_query)
 
@@ -2095,14 +2129,24 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
         card_query = card_query[0:cards_to_slot]
 
         if card_query not in decision_node.card_totals:
+            print("building query for card")
+            new_tree.build(node=decision_node,cards=card_query,compute_time=10,max_nodes=100)
+
+        if decision_node.card_totals[card_query] < 100:
+            print("expanding node for card")
             new_tree.build(node=decision_node,cards=card_query,compute_time=10,max_nodes=100)
 
         total_games = decision_node.card_totals[card_query]
         total_wins = decision_node.card_wins[card_query]
+        child_totals = decision_node.get_child_game_totals(card_query)
+        child_wins = decision_node.get_child_win_totals(card_query)
 
-        print(path_query,card_query)
-        print(total_games,total_wins)
-        print(total_wins / float(total_games))
+        print(total_games)
+        print(total_wins)
+        print(child_totals)
+        print(child_wins)
+
+        equal_chance_probability = 1 / float(opponents + 1)
 
         self.call_bet()
         return None
