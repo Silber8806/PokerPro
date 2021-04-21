@@ -79,7 +79,10 @@ def card_reduced_set(cards):
     return tuple(sorted_ranks)
 
 def method_exists(instance, method):
-    return method in dir(instance) and callable(instance.method)
+    test_method = getattr(instance, method, None)
+    if callable(test_method):
+        return True
+    return False
 
 class FrenchDeck():
 
@@ -1120,6 +1123,11 @@ class Game():
         for player in self.players: 
             player['player'].update_balance_history()
 
+        for player in self.players:
+            player_to_test = player['player']
+            if method_exists(player_to_test,'post_game_hook'):
+                player_to_test.post_game_hook()
+
         return None
 
     def run_game(self):
@@ -1837,6 +1845,9 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
         super().__init__(name,balance)
 
         self.decision_tree = MCST_Set()
+
+    def post_game_hook(self):
+        print("hello world!")
 
     def get_opponents_map(self):
 
