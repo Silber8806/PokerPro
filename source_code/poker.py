@@ -1777,12 +1777,6 @@ class MCST(object):
                 river = self.card_context[3:]
                 current_river_cards = len(river)
 
-                print(river)
-                print(current_river_cards)
-                print(total_river_cards)
-                print(node.card_phase)
-                print(total_river_cards - current_river_cards)
-
                 hand, river = list(hand),list(river)
 
                 deck = FrenchDeck()
@@ -1872,7 +1866,8 @@ class MCST(object):
             raise Exception("can't have phase greater than 3")
 
         if len(cards) != card_slots:
-            raise Exception("can't have more card slots than cards")
+            print(root)
+            raise Exception("can't have more card slots {} than cards {} - phase {}".format(len(cards),card_slots,root.card_phase))
 
         root.leaf_node[cards] = False
         
@@ -1979,9 +1974,10 @@ class MCST(object):
 
         return new_node
 
-    def query(self,cards,query_set):
+    def query(self,hand,query_set):
         node = self.get_root()
-        self.card_context = cards
+        hand = order_by_rank(hand)
+        self.card_context = hand
 
         for query in query_set:
             player, action_type, _ = query
@@ -1989,24 +1985,20 @@ class MCST(object):
             node = node.relations[action_type]
             
             if node is None:
-                print("created node")
                 if len(prev_node.turn_context) == 1 or prev_node.end_game_node == True:
                     raise Exception("Can't create node after game over...")
-                node = self.create_node(cards,prev_node,action_type)
+                node = self.create_node(hand,prev_node,action_type)
                 self.simulate_node(node)
                 self.back_propogate_node(node)
             else:
-                print("updated node")
                 abridged_key = []
                 for key in node.card_totals.keys():
-                    abridged_key.append(key[0:len(cards)])
-                if cards not in abridged_key:
-                    self.update_node(node,cards)
-                    print(cards,node.card_phase)
+                    abridged_key.append(key[0:len(hand)])
+                if hand not in abridged_key:
+                    self.update_node(node,hand)
+                    print(hand,node.card_phase)
                     self.simulate_node(node)
                     self.back_propogate_node(node)
-                else:
-                    print("node ready")
 
             if node.player_type != player:
                 raise Exception("wrong player type...please check for bugs")
@@ -2079,18 +2071,33 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
         if river is None:
             river = []
 
-        
-        card_query = tuple(list(order_by_rank(hand)) + list(order_by_rank(river[0:3])) + list(river[3:]))
         path_query = self.past_player_actions()
+        decision_node = new_tree.query(hand=hand,query_set=path_query)
 
-        print(hand,river)
-        print(card_query)
-        print(path_query)
+        last_card_phase = decision_node.card_phase
 
-        decision_node = new_tree.query(cards=card_query,query_set=path_query)
+        if last_card_phase== 0:
+            cards_to_slot = 2
+        elif last_card_phase == 1:
+            cards_to_slot = 5
+        elif last_card_phase == 2:
+            cards_to_slot = 6
+        elif last_card_phase == 3:
+            cards_to_slot = 7
+        else:
+            raise Exception("phases need to be between 0 and 3")
+
+        card_query = tuple(list(order_by_rank(hand)) + list(order_by_rank(river[0:3])) + list(river[3:]))
+        card_query = card_query[0:cards_to_slot]
+
+        if card_query not in decision_node.card_totals:
+            new_tree.build(node=decision_node,cards=card_query,compute_time=10,max_nodes=100)
+
         total_games = decision_node.card_totals[card_query]
         total_wins = decision_node.card_wins[card_query]
 
+        print(path_query,card_query)
+        print(total_games,total_wins)
         print(total_wins / float(total_games))
 
         self.call_bet()
