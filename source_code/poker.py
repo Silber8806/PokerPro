@@ -1790,7 +1790,7 @@ class MCST(object):
             if node.card_phase == 0:
                 river = []
                 hand, river = list(hand),list(river)
-                wins, total = monte_carlo_simulation(cards=hand,river=river,opponents=active_opponents,runtimes=self.monte_carlo_sims * self.card_branching)
+                wins, total = monte_carlo_simulation(cards=hand,river=river,opponents=active_opponents,runtimes=self.monte_carlo_sims)
 
                 propogation_key = tuple(hand)
                 node.back_propogation_list[propogation_key] = {"wins":wins,"total":total}
