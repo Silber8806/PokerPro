@@ -140,8 +140,9 @@ class PlayerNode(object):
         self.card_totals = {}
         self.new_phase = new_phase
         self.back_propogation_list = []
-        
-    def get_parent_chain(self):
+    
+    @property
+    def parents(self):
         parents = []
         active_node = self 
         while active_node.parent is not None:
@@ -149,8 +150,20 @@ class PlayerNode(object):
             active_node = active_node.parent
         return parents
 
+    @property 
+    def fold(self):
+        return self.relations['fold']
+
+    @property 
+    def call(self):
+        return self.relations['call']
+
+    @property 
+    def bet(self):
+        return self.relations['bet']
+
     def __repr__(self):
-        parents = self.get_parent_chain()
+        parents = self.parents
         parents.append(self.player_action)
         if self.debug == 1:
             listing = "({}) => ({}:{}:{}) => ({}) => \n\t({})".format(parents,self.card_phase,self.player_type,self.player_action,self.leaf_node,self.card_context)
@@ -161,8 +174,8 @@ class PlayerNode(object):
 class MCST(object):
     def __init__(self,turn_order,card_branching=100,monte_carlo_sims=1):
         self.turn_order = turn_order
+        self.card_context = None
         self.hand = None 
-        self.cards = ()
         self.actions = ['fold','call','bet']
         self.root = PlayerNode(player_type='start')
         self.done = {}
@@ -192,7 +205,7 @@ class MCST(object):
 
     def select_node(self,node):
         turn_order = list(node.turn_context)
-        cards = node.card_context
+        cards = self.card_context
         card_phase = node.card_phase 
 
         if len(turn_order) == 1:
@@ -256,7 +269,6 @@ class MCST(object):
                 else:
                     updated_node.leaf_node[cards] = False
 
-                updated_node.card_context = cards
                 return updated_node
             else:
                 last_turn = copy.deepcopy(node.last_turn)
@@ -305,7 +317,6 @@ class MCST(object):
                 new_node = PlayerNode(
                     player_type=new_player_type,
                     player_action=action_to_update,
-                    card_context=cards,
                     turn_context=new_turn_order,
                     restrict_raises=restrict_raises,
                     card_phase=card_phase,
@@ -415,10 +426,10 @@ class MCST(object):
 
         self.done[hand] = False
         self.hands_simulated.add(hand)
+        self.card_context = hand
 
         root = self.get_root()
         root.turn_context = self.turn_order
-        root.card_context = hand
         root.last_turn = {player:None for player in self.turn_order}
         root.bid_round = {player:0 for player in self.turn_order}
         root.leaf_node[hand] = False
@@ -444,25 +455,29 @@ class MCST(object):
 
         return None
 
-    def query(self,query_set):
+    def query(self,card_context,query_set):
+        node = self.get_root()
+
+        for query in query_set:
+            player, action_type, _ = query
+            node = node.relations[action_type]
+            
+            if node is not None:
+                print("node is not None")
+                if node.player_type != player:
+                    raise Exception("player type did not match...")
+            else:
+                print("create node")
+
         return None
 
     def __repr__(self): 
         return 'MCTS with {} players'.format(str(self.turn_order))
 
-query_set = {
-    'card_context': (Card(rank='9', suit='spades'), Card(rank='A', suit='spades')),
-    'decisions':[
-        ('current','bet',100),
-        ('opponent 1','call',0),
-        ('current','bet',100),
-        ('opponent 1','call',0)
-    ]
-}
-
 if __name__ == '__main__':
     print("starting MCTS")
     turn_order = ('current', 'opponent 1')
+    hand = (Card(rank='9', suit='spades'), Card(rank='A', suit='spades'))
 
     pickled_file = 'MCST.pickle'
     if os.path.exists(pickled_file):
@@ -474,12 +489,18 @@ if __name__ == '__main__':
         current_MCST = trees.get_game(turn_order)
 
         print("starting first simulation")
-        hand = (Card(rank='9', suit='spades'), Card(rank='A', suit='spades'))
         current_MCST.build(compute_time=120,hand=hand,max_nodes=math.inf)
-
-        print(current_MCST.get_root().card_totals)
 
         with open(pickled_file, 'wb') as handle:
             pickle.dump(trees, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     current_MCST = trees.get_game(turn_order)
+
+    query_set = (
+        ('current','bet',100),
+        ('opponent 1','call',0),
+        ('current','bet',100),
+        ('opponent 1','call',0)
+    )
+
+    current_MCST.query(hand,query_set)

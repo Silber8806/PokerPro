@@ -13,6 +13,9 @@ import copy
 from collections import Counter
 from multiprocessing import Pool
 from functools import partial
+print('sys executable',sys.executable)
+#pip install numpy
+import numpy as np
 
 # named tuple is a tuple object (immutable type) that also has names.  
 # immutable means once created they can't be modified.
@@ -76,7 +79,10 @@ def card_reduced_set(cards):
     return tuple(sorted_ranks)
 
 def method_exists(instance, method):
-    return method in dir(instance) and callable(instance.method)
+    test_method = getattr(instance, method, None)
+    if callable(test_method):
+        return True
+    return False
 
 class FrenchDeck():
 
@@ -644,10 +650,11 @@ class GenericPlayer(object):
         self.won_game = 0
         self.final_hand = None
         self.blind_type = 'None'
-        self.hand_dictionary={i+j+k:{'sum_absolute_bet':0,'sum_bet':0} for i in(Ranks) for j in(Ranks) for k in(['N','Y'])}
+        self.hand_dictionary={i+j+k:{'sum_absolute_bet':0,'sum_bet':np.array([0,0,0],dtype=float)} for i in(Ranks) for j in(Ranks) for k in(['N','Y'])} 
         self.current_game = None
         self.active_game = None
         self.pre_flob_wins = {}
+        self.short_memory=None # this remembers the immidiate game number to compare it with current game for simpleLearnerPlayer
 
     def register_for_game(self,game):
         """
@@ -1115,6 +1122,11 @@ class Game():
 
         for player in self.players: 
             player['player'].update_balance_history()
+
+        for player in self.players:
+            player_to_test = player['player']
+            if method_exists(player_to_test,'post_game_hook'):
+                player_to_test.post_game_hook()
 
         return None
 
@@ -1834,6 +1846,9 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
 
         self.decision_tree = MCST_Set()
 
+    def post_game_hook(self):
+        print("hello world!")
+
     def get_opponents_map(self):
 
         opponent_map = {}
@@ -1920,55 +1935,6 @@ class simpleLearnerPlayer(GenericPlayer):
         make the function for making it suitless. get the card and make it suitless.
 
         """
-        print('______________________________________________________________________')
-        print('______________________________________________________________________')
-        
-        if len(self.balance_history)==0:
-            
-            self.number_of_finished_games=0
-        
-        
-        elif len(self.balance_history)>self.number_of_finished_games:
-            number_of_game=len(self.balance_history)
-            print('card1 is ',self.balance_history)
-            #print('last_item is', self.balance_history[-1][-1])
-            self.number_of_finished_games=len(self.balance_history)
-            #print(self.number_of_finished_games)
-        hand_rank=[x for x,y in hand]
-        hand_suit=[y for x,y in hand]
-
-        
-        if hand_suit[0]==hand_suit[1]:
-            same_suit='Y'
-        else:
-            same_suit='N'
-        dictionary_key=[hand_rank[0]+hand_rank[1]+same_suit,hand_rank[1]+hand_rank[0]+same_suit]
-        #using same probability to play for first hand
-        #print('dictionary is ',self.hand_dictionary[dictionary_key[0]]['sum_absolute_bet'])
-        print('river is ',river)
-        if self.hand_dictionary[dictionary_key[0]]['sum_absolute_bet']==0:
-            chance=random.random()
-            if chance<0.33:
-                self.fold_bet()
-            elif chance>=0.33 and chance<0.66:
-                self.call_bet()
-            else:
-                self.raise_bet(20)
-        else:
-            if self.hand_dictionary[0]['sum_bet']>0:
-                self.raise_bet(round(100*self.hand_dictionary[0]['sum_bet']/self.hand_dictionary[0]['sum_absolute_bet'],0))
-            else:
-                if chance<0.2:
-                    self.call_bet()
-                else:
-                    self.fold_bet()
-        
-        
-        print('current pot is',pot)
-        print(random.random())
-        #print([x(card.rank) for x in hand])
-        #sys.exit(0)
-
 
 
 def validate_config(config):
