@@ -13,7 +13,6 @@ import copy
 from collections import Counter
 from multiprocessing import Pool
 from functools import partial
-print('sys executable',sys.executable)
 #pip install numpy
 import numpy as np
 
@@ -2462,7 +2461,7 @@ def run_all_simulations(config):
     return None
 
 debug = 0 # to see detailed messages of simulation, put this to 1, think verbose mode
-use_parallel = 0 # would not recommend using use_cache=1 on function simulate_win_odds due to not knowing if globals are thread or process safe.
+use_parallel = 1 # would not recommend using use_cache=1 on function simulate_win_odds due to not knowing if globals are thread or process safe.
 
 # serial runs are guanteed unique repeatable results.  Parallel runs due to randomness of start times are not.  worth noting.
 
@@ -2474,8 +2473,8 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 1, # number of poker tables simulated
-       'hands': 5, # number of hands the dealer will player, has to be greater than 2
+       'tables': 50, # number of poker tables simulated
+       'hands': 100, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run    
@@ -2483,15 +2482,47 @@ if __name__ == '__main__':
                 'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    #CalculatedPlayer, # defines strategy of player 3
-                    #GambleByProbabilityPlayer, # defines strategy of player 4
-                    #ConservativePlayer, # defines strategy of player 5
-                    #SmartPlayer # defines strategy of player 6
-                    #MonteCarloTreeSearchPlayer
                     MonteCarloTreeSearchPlayer
                 ]
-            }    
+            },
+           {
+                'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    MonteCarloTreeSearchPlayer
+                ]
+            },
+           {
+                'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    MonteCarloTreeSearchPlayer
+                ]
+            },
+           {
+                'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    AlwaysCallPlayer, # defines strategy of player 4
+                    MonteCarloTreeSearchPlayer
+                ]
+            },
+           {
+                'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    AlwaysCallPlayer, # defines strategy of player 4
+                    AlwaysCallPlayer, # defines strategy of player 5
+                    MonteCarloTreeSearchPlayer
+                ]
+            }
         ]
     }
 
