@@ -875,7 +875,7 @@ class GenericPlayer(object):
     def __str__(self):
         return "{} [balance: ${}]".format(self.name,self.balance)
 
-class Game():
+class Game(object):
     """
         Game implements an actual poker game.  It has all the mechanics to do
         pre-flob, post-flob and scoring of games.  The 
@@ -1405,11 +1405,11 @@ class SmartPlayer(GenericPlayer):
 ##########################################################################################
 
 def order_by_rank(cards):
-    return tuple(sorted(list(cards),key=lambda card: (card.rank, card.suit)))
+    return tuple(sorted(list(cards),key=lambda card: (RankMap[card.rank], card.suit)))
 
 def UCB(wins,games,parent_total,constant):
     if games == 0 or parent_total == 0:
-        raise Exception("UCB requires games or parent total")
+        return 0
     return wins / games + constant * math.sqrt(math.log(parent_total)/games)
 
 def monte_carlo_simulation(cards,river,opponents,runtimes=1):
@@ -1463,7 +1463,7 @@ def monte_carlo_simulation(cards,river,opponents,runtimes=1):
 
     return (wins, runtimes) # your percent wins
 
-class MCST_Set():
+class MCST_Set(object):
     def __init__(self):
         self.game_types = {}
 
@@ -1557,16 +1557,18 @@ class PlayerNode(object):
         game_totals = {}
         for action in self.relations:
             node =  self.relations[action]
-            child_total = node.get_game_total(card)
-            game_totals[action] = child_total 
+            if node is not None:
+                child_total = node.get_game_total(card)
+                game_totals[action] = child_total 
         return game_totals
 
     def get_child_win_totals(self,card):
         win_totals = {}
         for action in self.relations:
             node =  self.relations[action]
-            child_total = node.get_win_total(card)
-            win_totals[action] = child_total 
+            if node is not None:
+                child_total = node.get_win_total(card)
+                win_totals[action] = child_total 
         return win_totals
 
     def __repr__(self):
@@ -1579,10 +1581,11 @@ class PlayerNode(object):
         return listing
 
 class MCST(object):
-    def __init__(self,turn_order,card_branching=10,monte_carlo_sims=100):
+    def __init__(self,turn_order,card_branching=10,monte_carlo_sims=10):
         self.turn_order = turn_order
         self.small_blind = turn_order[-2]
         self.big_blind = turn_order[-1]
+        self.post_flop_turn_order = self.turn_order[-2:] + self.turn_order[:-2] 
         self.actions = ['fold','call','bet']
         self.done = {}
         self.card_branching = card_branching
@@ -1678,11 +1681,37 @@ class MCST(object):
                 card_phase = node.card_phase 
                 last_turn = copy.deepcopy(node.last_turn)
                 bid_round = copy.deepcopy(node.bid_round)
-            
+        
                 new_card_action = 1
-                for player in last_turn:
-                    if last_turn[player] is None or last_turn[player] == 'bet':
+                bid_matching=set()
+                for player in turn_order:
+                    if last_turn[player] == 'fold':
+                        continue 
+                    elif last_turn[player] is None:
                         new_card_action=0
+                        break
+                    else:
+                        bid_matching.add(bid_round[player])
+
+                if new_card_action == 1:
+                    if len(bid_matching) != 1:
+                        new_card_action=0
+
+                    if new_card_action == 1:
+                        
+                        if card_phase == 0:
+                            turn_order_to_check=self.turn_order
+                        elif card_phase > 0 and card_phase < 4:
+                            turn_order_to_check=self.post_flop_turn_order
+
+                        player_positions = [last_turn[player] for player in turn_order_to_check if last_turn[player] != 'fold']
+
+                        if player_positions[0] not in ('call','bet'):
+                            new_card_action=0
+                        else:
+                            for player in player_positions[1:]:
+                                if player == 'bet' or player is None:
+                                    new_card_action=0
 
                 if new_card_action == 1:
                     for player in last_turn:
@@ -1691,14 +1720,8 @@ class MCST(object):
                             last_turn[player] = None
                     card_phase += 1
 
-                    if card_phase == 1:
-                        turn_order = [player for player in self.turn_order if last_turn[player] != 'fold']
-                        if self.big_blind in turn_order:
-                            current_index = turn_order.index(self.big_blind)
-                            turn_order.insert(0,turn_order.pop(current_index))
-                        if self.small_blind in turn_order:
-                            current_index = turn_order.index(self.small_blind)
-                            turn_order.insert(0,turn_order.pop(current_index))
+                    if card_phase > 0 and card_phase < 4:
+                        turn_order = [player for player in self.post_flop_turn_order if last_turn[player] != 'fold']
 
                 if card_phase == 4:
                     node.leaf_node[cards] = True
@@ -1710,7 +1733,7 @@ class MCST(object):
                 if action_to_update == 'fold':
                     turn_order.pop(0)
                     new_turn_order = turn_order
-                    bid_round[new_player_type] = 3
+                    bid_round[new_player_type] = 4
                 else:
                     bid_round[new_player_type] += 1
                     new_turn_order = turn_order[1:] + turn_order[0:1]
@@ -1748,8 +1771,6 @@ class MCST(object):
                 node.relations[action_to_update] = new_node
                 return new_node
         else:
-            relationship_to_visit = random.choice(fullfilled_actions)
-
             graded_nodes = []
             for action in fullfilled_actions:
                 node_to_grade = node.relations[action]
@@ -1770,7 +1791,6 @@ class MCST(object):
                         parent_totals += node_to_grade.parent.card_totals[card]
 
                 UCB_score = UCB(wins=game_wins,games=game_totals,parent_total=parent_totals,constant=math.sqrt(2))
-
                 graded_nodes.append((UCB_score,action))
 
             tie_breaker = {'fold':0, 'bet':1, 'call':2}
@@ -1818,6 +1838,7 @@ class MCST(object):
 
                 if cards_to_draw < 0:
                     raise Exception("simulation: can't draw less than 0 cards")
+                
                 for _ in range(0,self.card_branching):
                     if cards_to_draw == 0:
                         new_river = river
@@ -1826,14 +1847,19 @@ class MCST(object):
                     wins, total = monte_carlo_simulation(cards=hand,river=new_river,opponents=active_opponents,runtimes=self.monte_carlo_sims)
 
                     cards_to_propogate = list(hand) + list(new_river)
-                    propagation_key = tuple(list(order_by_rank(cards_to_propogate[:2])) + list(order_by_rank(cards_to_propogate[2:5])) + list(cards_to_propogate[5:]))
+
+                    hand_prop_key = list(order_by_rank(cards_to_propogate[:2])) 
+                    river_prop_key = list(order_by_rank(cards_to_propogate[2:5]))
+                    last_prop_key = list(cards_to_propogate[5:])
+                    propagation_key = tuple(hand_prop_key + river_prop_key + last_prop_key)
+
                     node.back_propogation_list[propagation_key] = {"wins":wins,"total":total}
 
                     deck.load_deck()
                     deck.reshuffle_draw_deck()
         else:
             propagation_key = self.card_context
-            node.back_propogation_list[propagation_key] = {"wins":0,"total":1}
+            node.back_propogation_list[propagation_key] = {"wins":0,"total":0}
         return None
 
     def back_propogate_node(self,node):
@@ -1896,7 +1922,6 @@ class MCST(object):
             raise Exception("can't have phase greater than 3")
 
         if len(cards) != card_slots:
-            print(root)
             raise Exception("can't have more card slots {} than cards {} - phase {}".format(len(cards),card_slots,root.card_phase))
 
         root.leaf_node[cards] = False
@@ -1934,11 +1959,37 @@ class MCST(object):
 
         last_turn = copy.deepcopy(parent_node.last_turn)
         bid_round = copy.deepcopy(parent_node.bid_round)
-    
+
         new_card_action = 1
-        for player in last_turn:
-            if last_turn[player] is None or last_turn[player] == 'bet':
+        bid_matching=set()
+        for player in turn_order:
+            if last_turn[player] == 'fold':
+                continue 
+            elif last_turn[player] is None:
                 new_card_action=0
+                break
+            else:
+                bid_matching.add(bid_round[player])
+
+        if new_card_action == 1:
+            if len(bid_matching) != 1:
+                new_card_action=0
+
+            if new_card_action == 1:
+                
+                if card_phase == 0:
+                    turn_order_to_check=self.turn_order
+                elif card_phase > 0 and card_phase < 4:
+                    turn_order_to_check=self.post_flop_turn_order
+
+                player_positions = [last_turn[player] for player in turn_order_to_check if last_turn[player] != 'fold']
+
+                if player_positions[0] not in ('call','bet'):
+                    new_card_action=0
+                else:
+                    for player in player_positions[1:]:
+                        if player == 'bet' or player is None:
+                            new_card_action=0
 
         if new_card_action == 1:
             for player in last_turn:
@@ -1947,14 +1998,8 @@ class MCST(object):
                     last_turn[player] = None
             card_phase += 1
 
-            if card_phase == 1:
-                turn_order = [player for player in self.turn_order if last_turn[player] != 'fold']
-                if self.big_blind in turn_order:
-                    current_index = turn_order.index(self.big_blind)
-                    turn_order.insert(0,turn_order.pop(current_index))
-                if self.small_blind in turn_order:
-                    current_index = turn_order.index(self.small_blind)
-                    turn_order.insert(0,turn_order.pop(current_index))
+            if card_phase > 0 and card_phase < 4:
+                turn_order = [player for player in self.post_flop_turn_order if last_turn[player] != 'fold']
 
         if card_phase == 4:
             parent_node.leaf_node[cards] = True
@@ -2043,6 +2088,8 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
         super().__init__(name,balance)
 
         self.decision_tree = MCST_Set()
+        self.moving_average = []
+        self.last_odds = 0
 
     def get_opponents_map(self):
 
@@ -2087,24 +2134,24 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
         return past_actions
 
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
-        print("starting bet strategy")
+
+        if call_bid / self.balance > .02:
+            self.fold_bet()
+            return None
+
         beginning_players = self.get_turn_order()
         if not self.decision_tree.has_game(beginning_players):
-            print("new player configuration discovered")
             self.decision_tree.add_game(beginning_players)
             new_tree = self.decision_tree.get_game(beginning_players)
         else:
-            print('loadding old configuration')
             new_tree = self.decision_tree.get_game(beginning_players)
 
         if not new_tree.has_hand(hand):
-            print("new hand discovered...building")
-            new_tree.build(cards=hand,compute_time=10,max_nodes=1000)
+            new_tree.build(cards=hand,compute_time=30,max_nodes=math.inf)
 
         if river is None:
             river = []
 
-        print("finding new decision node")
         path_query = self.past_player_actions()
         decision_node = new_tree.query(hand=hand,query_set=path_query)
 
@@ -2125,26 +2172,74 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
         card_query = card_query[0:cards_to_slot]
 
         if card_query not in decision_node.card_totals:
-            print("building query for card")
-            new_tree.build(node=decision_node,cards=card_query,compute_time=10,max_nodes=100)
+            new_tree.build(node=decision_node,cards=card_query,compute_time=5,max_nodes=100)
 
         if decision_node.card_totals[card_query] < 100:
-            print("expanding node for card")
-            new_tree.build(node=decision_node,cards=card_query,compute_time=10,max_nodes=100)
+            new_tree.build(node=decision_node,cards=card_query,compute_time=5,max_nodes=100)
 
-        total_games = decision_node.card_totals[card_query]
-        total_wins = decision_node.card_wins[card_query]
         child_totals = decision_node.get_child_game_totals(card_query)
         child_wins = decision_node.get_child_win_totals(card_query)
 
-        print(total_games)
-        print(total_wins)
-        print(child_totals)
-        print(child_wins)
+        decision_info = []
+        for action in child_totals:
+            totals = child_totals[action]
+            wins = child_wins[action]
+            if totals == 0:
+                totals = 1
+            decision_info.append((action,wins/totals))
+
+        decision_info.sort(key=lambda ky: -ky[1])
+        
+        if len(decision_info) > 0:
+            decision_to_make = decision_info[0][0]
+            win_odds = decision_info[0][1]
+        else:
+            decision_to_make = 'fold'
+            win_odds = 0
 
         equal_chance_probability = 1 / float(opponents + 1)
+        pre_flop_moving_average = equal_chance_probability
+        wager_probability = equal_chance_probability
+        if decision_node.card_phase == 0:
+            if len(self.moving_average) > 20:
+                self.moving_average.pop(0)
+            
+            if win_odds > 0:
+                self.moving_average.append(win_odds)
+            
+            self.last_odds = win_odds
 
-        self.call_bet()
+            if sum(self.moving_average) ==  0:
+                pre_flop_moving_average = equal_chance_probability
+            else:
+                pre_flop_moving_average = sum(self.moving_average) / len(self.moving_average)
+
+            wager_probability = pre_flop_moving_average
+
+        if win_odds >= self.last_odds:
+            greater_or_equal = True
+        else:
+            greater_or_equal = False 
+
+        if decision_node.card_phase in (1,2):
+            if greater_or_equal == True or win_odds > equal_chance_probability:
+                wager_probability = win_odds - .01
+        elif decision_node.card_phase == 3:
+            wager_probability = equal_chance_probability
+
+        made_wager = 0
+        if decision_to_make == 'bet' or decision_to_make == 'call':
+            if win_odds >= wager_probability:
+                made_wager = 1
+                if win_odds >= .9:
+                    self.raise_bet(1000)
+                elif decision_to_make == 'bet':
+                    self.raise_bet(100)
+                elif decision_to_make == 'call':
+                    self.call_bet()
+        
+        if made_wager == 0:
+            self.fold_bet()
         return None
 
 ##########################################################################################
@@ -2230,8 +2325,6 @@ class simpleLearnerPlayer(GenericPlayer):
         print(random.random())
         #print([x(card.rank) for x in hand])
         #sys.exit(0)
-
-
 
 def validate_config(config):
     """
@@ -2377,7 +2470,7 @@ if __name__ == '__main__':
     # defines all the simulations we will run
     simulations = {
        'tables': 1, # number of poker tables simulated
-       'hands': 10, # number of hands the dealer will player, has to be greater than 2
+       'hands': 5, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run    
@@ -2385,7 +2478,7 @@ if __name__ == '__main__':
                 'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
-                    #AlwaysRaisePlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 2
                     #CalculatedPlayer, # defines strategy of player 3
                     #GambleByProbabilityPlayer, # defines strategy of player 4
                     #ConservativePlayer, # defines strategy of player 5
