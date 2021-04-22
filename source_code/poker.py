@@ -13,6 +13,9 @@ import copy
 from collections import Counter
 from multiprocessing import Pool
 from functools import partial
+print('sys executable',sys.executable)
+#pip install numpy
+import numpy as np
 
 # named tuple is a tuple object (immutable type) that also has names.  
 # immutable means once created they can't be modified.
@@ -647,10 +650,11 @@ class GenericPlayer(object):
         self.won_game = 0
         self.final_hand = None
         self.blind_type = 'None'
-        self.hand_dictionary={i+j+k:{'sum_absolute_bet':0,'sum_bet':0} for i in(Ranks) for j in(Ranks) for k in(['N','Y'])}
+        self.hand_dictionary={i+j+k:{'sum_absolute_bet':0,'sum_bet':np.array([0,0,0],dtype=float)} for i in(Ranks) for j in(Ranks) for k in(['N','Y'])} 
         self.current_game = None
         self.active_game = None
         self.pre_flob_wins = {}
+        self.short_memory=None # this remembers the immidiate game number to compare it with current game for simpleLearnerPlayer
 
     def register_for_game(self,game):
         """
@@ -2277,6 +2281,7 @@ class simpleLearnerPlayer(GenericPlayer):
         make the function for making it suitless. get the card and make it suitless.
 
         """
+        
         print('______________________________________________________________________')
         print('______________________________________________________________________')
         
