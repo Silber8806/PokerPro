@@ -20,11 +20,11 @@ def dprint(message):
         print(message)
 
 def order_by_rank(cards):
-    return tuple(sorted(list(cards),key=lambda card: (card.rank, card.suit)))
+    return tuple(sorted(list(cards),key=lambda card: (RankMap[card.rank], card.suit)))
 
 def UCB(wins,games,parent_total,constant):
     if games == 0 or parent_total == 0:
-        raise Exception("UCB requires games or parent total")
+        return 0
     return wins / games + constant * math.sqrt(math.log(parent_total)/games)
 
 def monte_carlo_simulation(cards,river,opponents,runtimes=1):
@@ -78,7 +78,7 @@ def monte_carlo_simulation(cards,river,opponents,runtimes=1):
 
     return (wins, runtimes) # your percent wins
 
-class MCST_Set():
+class MCST_Set(object):
     def __init__(self):
         self.game_types = {}
 
@@ -154,6 +154,38 @@ class PlayerNode(object):
     def bet(self):
         return self.relations['bet']
 
+    def get_game_total(self, card):
+        game_total = 0
+        for card_set in self.card_totals:
+            if card_set[0:len(card)] == card:
+                game_total += self.card_totals[card_set]
+        return game_total
+
+    def get_win_total(self, card):
+        win_total = 0
+        for card_set in self.card_wins:
+            if card_set[0:len(card)] == card:
+                win_total += self.card_wins[card_set]
+        return win_total
+
+    def get_child_game_totals(self,card):
+        game_totals = {}
+        for action in self.relations:
+            node =  self.relations[action]
+            if node is not None:
+                child_total = node.get_game_total(card)
+                game_totals[action] = child_total 
+        return game_totals
+
+    def get_child_win_totals(self,card):
+        win_totals = {}
+        for action in self.relations:
+            node =  self.relations[action]
+            if node is not None:
+                child_total = node.get_win_total(card)
+                win_totals[action] = child_total 
+        return win_totals
+
     def __repr__(self):
         parents = self.parents
         parents.append(self.player_action)
@@ -168,6 +200,7 @@ class MCST(object):
         self.turn_order = turn_order
         self.small_blind = turn_order[-2]
         self.big_blind = turn_order[-1]
+        self.post_flop_turn_order = self.turn_order[-2:] + self.turn_order[:-2] 
         self.actions = ['fold','call','bet']
         self.done = {}
         self.card_branching = card_branching
@@ -204,8 +237,6 @@ class MCST(object):
     def select_node(self,root,node):
         turn_order = list(node.turn_context)
         cards = self.card_context
-
-        print(node)
 
         if cards is None:
             raise Exception("Card context has to be set to select node")
@@ -265,11 +296,37 @@ class MCST(object):
                 card_phase = node.card_phase 
                 last_turn = copy.deepcopy(node.last_turn)
                 bid_round = copy.deepcopy(node.bid_round)
-            
+        
                 new_card_action = 1
-                for player in last_turn:
-                    if last_turn[player] is None or last_turn[player] == 'bet':
+                bid_matching=set()
+                for player in turn_order:
+                    if last_turn[player] == 'fold':
+                        continue 
+                    elif last_turn[player] is None:
                         new_card_action=0
+                        break
+                    else:
+                        bid_matching.add(bid_round[player])
+
+                if new_card_action == 1:
+                    if len(bid_matching) != 1:
+                        new_card_action=0
+
+                    if new_card_action == 1:
+                        
+                        if card_phase == 0:
+                            turn_order_to_check=self.turn_order
+                        elif card_phase > 0 and card_phase < 4:
+                            turn_order_to_check=self.post_flop_turn_order
+
+                        player_positions = [last_turn[player] for player in turn_order_to_check if last_turn[player] != 'fold']
+
+                        if player_positions[0] not in ('call','bet'):
+                            new_card_action=0
+                        else:
+                            for player in player_positions[1:]:
+                                if player == 'bet' or player is None:
+                                    new_card_action=0
 
                 if new_card_action == 1:
                     for player in last_turn:
@@ -278,14 +335,8 @@ class MCST(object):
                             last_turn[player] = None
                     card_phase += 1
 
-                    if card_phase == 1:
-                        turn_order = [player for player in self.turn_order if last_turn[player] != 'fold']
-                        if self.big_blind in turn_order:
-                            current_index = turn_order.index(self.big_blind)
-                            turn_order.insert(0,turn_order.pop(current_index))
-                        if self.small_blind in turn_order:
-                            current_index = turn_order.index(self.small_blind)
-                            turn_order.insert(0,turn_order.pop(current_index))
+                    if card_phase > 0 and card_phase < 4:
+                        turn_order = [player for player in self.post_flop_turn_order if last_turn[player] != 'fold']
 
                 if card_phase == 4:
                     node.leaf_node[cards] = True
@@ -297,7 +348,7 @@ class MCST(object):
                 if action_to_update == 'fold':
                     turn_order.pop(0)
                     new_turn_order = turn_order
-                    bid_round[new_player_type] = 3
+                    bid_round[new_player_type] = 4
                 else:
                     bid_round[new_player_type] += 1
                     new_turn_order = turn_order[1:] + turn_order[0:1]
@@ -333,10 +384,9 @@ class MCST(object):
                 new_node.bid_round = bid_round
                 new_node.parent = node
                 node.relations[action_to_update] = new_node
+
                 return new_node
         else:
-            relationship_to_visit = random.choice(fullfilled_actions)
-
             graded_nodes = []
             for action in fullfilled_actions:
                 node_to_grade = node.relations[action]
@@ -357,9 +407,7 @@ class MCST(object):
                         parent_totals += node_to_grade.parent.card_totals[card]
 
                 UCB_score = UCB(wins=game_wins,games=game_totals,parent_total=parent_totals,constant=math.sqrt(2))
-
                 graded_nodes.append((UCB_score,action))
-                
 
             tie_breaker = {'fold':0, 'bet':1, 'call':2}
             graded_nodes = sorted(graded_nodes,key=lambda score: (-score[0],-tie_breaker[score[1]]))
@@ -378,7 +426,7 @@ class MCST(object):
             if node.card_phase == 0:
                 river = []
                 hand, river = list(hand),list(river)
-                wins, total = monte_carlo_simulation(cards=hand,river=river,opponents=active_opponents,runtimes=self.monte_carlo_sims * self.card_branching)
+                wins, total = monte_carlo_simulation(cards=hand,river=river,opponents=active_opponents,runtimes=self.monte_carlo_sims)
 
                 propogation_key = tuple(hand)
                 node.back_propogation_list[propogation_key] = {"wins":wins,"total":total}
@@ -392,7 +440,7 @@ class MCST(object):
                 else:
                     raise Exception("No card phase greater than 3")
 
-                river = self.card_context[3:]
+                river = self.card_context[2:]
                 current_river_cards = len(river)
 
                 hand, river = list(hand),list(river)
@@ -406,6 +454,7 @@ class MCST(object):
 
                 if cards_to_draw < 0:
                     raise Exception("simulation: can't draw less than 0 cards")
+                
                 for _ in range(0,self.card_branching):
                     if cards_to_draw == 0:
                         new_river = river
@@ -414,14 +463,19 @@ class MCST(object):
                     wins, total = monte_carlo_simulation(cards=hand,river=new_river,opponents=active_opponents,runtimes=self.monte_carlo_sims)
 
                     cards_to_propogate = list(hand) + list(new_river)
-                    propagation_key = tuple(list(order_by_rank(cards_to_propogate[:2])) + list(order_by_rank(cards_to_propogate[2:5])) + list(cards_to_propogate[5:]))
+
+                    hand_prop_key = list(order_by_rank(cards_to_propogate[:2])) 
+                    river_prop_key = list(order_by_rank(cards_to_propogate[2:5]))
+                    last_prop_key = list(cards_to_propogate[5:])
+                    propagation_key = tuple(hand_prop_key + river_prop_key + last_prop_key)
+
                     node.back_propogation_list[propagation_key] = {"wins":wins,"total":total}
 
                     deck.load_deck()
                     deck.reshuffle_draw_deck()
         else:
             propagation_key = self.card_context
-            node.back_propogation_list[propagation_key] = {"wins":0,"total":1}
+            node.back_propogation_list[propagation_key] = {"wins":0,"total":0}
         return None
 
     def back_propogate_node(self,node):
@@ -461,7 +515,8 @@ class MCST(object):
         if compute_time < 1:
             raise Exception("You have to run simulation for at least 1 second")
 
-        cards = tuple(order_by_rank(cards[:2]) + order_by_rank(cards[2:5]) + cards[5:])
+        cards = list(cards)
+        cards = tuple(order_by_rank(cards[:2]) + order_by_rank(cards[2:5]) + tuple(cards[5:]))
         self.card_context = cards
         self.done[cards] = False
         self.hands_simulated.add(cards)
@@ -483,7 +538,7 @@ class MCST(object):
             raise Exception("can't have phase greater than 3")
 
         if len(cards) != card_slots:
-            raise Exception("can't have more card slots than cards")
+            raise Exception("can't have more card slots {} than cards {} - phase {}".format(len(cards),card_slots,root.card_phase))
 
         root.leaf_node[cards] = False
         
@@ -520,11 +575,37 @@ class MCST(object):
 
         last_turn = copy.deepcopy(parent_node.last_turn)
         bid_round = copy.deepcopy(parent_node.bid_round)
-    
+
         new_card_action = 1
-        for player in last_turn:
-            if last_turn[player] is None or last_turn[player] == 'bet':
+        bid_matching=set()
+        for player in turn_order:
+            if last_turn[player] == 'fold':
+                continue 
+            elif last_turn[player] is None:
                 new_card_action=0
+                break
+            else:
+                bid_matching.add(bid_round[player])
+
+        if new_card_action == 1:
+            if len(bid_matching) != 1:
+                new_card_action=0
+
+            if new_card_action == 1:
+                
+                if card_phase == 0:
+                    turn_order_to_check=self.turn_order
+                elif card_phase > 0 and card_phase < 4:
+                    turn_order_to_check=self.post_flop_turn_order
+
+                player_positions = [last_turn[player] for player in turn_order_to_check if last_turn[player] != 'fold']
+
+                if player_positions[0] not in ('call','bet'):
+                    new_card_action=0
+                else:
+                    for player in player_positions[1:]:
+                        if player == 'bet' or player is None:
+                            new_card_action=0
 
         if new_card_action == 1:
             for player in last_turn:
@@ -533,14 +614,8 @@ class MCST(object):
                     last_turn[player] = None
             card_phase += 1
 
-            if card_phase == 1:
-                turn_order = [player for player in self.turn_order if last_turn[player] != 'fold']
-                if self.big_blind in turn_order:
-                    current_index = turn_order.index(self.big_blind)
-                    turn_order.insert(0,turn_order.pop(current_index))
-                if self.small_blind in turn_order:
-                    current_index = turn_order.index(self.small_blind)
-                    turn_order.insert(0,turn_order.pop(current_index))
+            if card_phase > 0 and card_phase < 4:
+                turn_order = [player for player in self.post_flop_turn_order if last_turn[player] != 'fold']
 
         if card_phase == 4:
             parent_node.leaf_node[cards] = True
@@ -592,6 +667,7 @@ class MCST(object):
 
     def query(self,hand,query_set):
         node = self.get_root()
+        hand = order_by_rank(hand)
         self.card_context = hand
 
         for query in query_set:
@@ -602,11 +678,13 @@ class MCST(object):
             if node is None:
                 if len(prev_node.turn_context) == 1 or prev_node.end_game_node == True:
                     raise Exception("Can't create node after game over...")
+                node = self.create_node(hand,prev_node,action_type)
+                self.simulate_node(node)
                 self.back_propogate_node(node)
             else:
                 abridged_key = []
                 for key in node.card_totals.keys():
-                    abridged_key.append(key[0:2])
+                    abridged_key.append(key[0:len(hand)])
                 if hand not in abridged_key:
                     self.update_node(node,hand)
                     self.simulate_node(node)
@@ -623,7 +701,7 @@ class MCST(object):
 if __name__ == '__main__':
     print("starting MCTS")
     turn_order = ('current', 'opponent 1')
-    hand = (Card(rank='9', suit='spades'), Card(rank='A', suit='spades'))
+    hand = (Card(rank='A', suit='hearts'), Card(rank='A', suit='diamonds'))
 
     pickled_file = 'MCST.pickle'
     if os.path.exists(pickled_file):
@@ -636,34 +714,34 @@ if __name__ == '__main__':
 
         print("starting first simulation")
         print(hand)
-        current_MCST.build(compute_time=10,cards=hand,max_nodes=100)
+        current_MCST.build(compute_time=1000000,cards=hand,max_nodes=math.inf)
 
         with open(pickled_file, 'wb') as handle:
             pickle.dump(trees, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     current_MCST = trees.get_game(turn_order)
 
-    query_set = (
-        ('current','bet',100),
-        ('opponent 1','call',0),
-        ('current','call',100),
-        ('current','call',100)
-    )
+    # query_set = (
+    #     ('current','bet',100),
+    #     ('opponent 1','call',0),
+    #     ('current','call',100),
+    #     ('current','call',100)
+    # )
 
-    hand = (Card(rank='9', suit='spades'), Card(rank='A', suit='spades'), Card(rank='10', suit='hearts'), Card(rank='3', suit='clubs'), Card(rank='5', suit='hearts'))
+    # hand = (Card(rank='9', suit='spades'), Card(rank='A', suit='spades'))
 
-    root = current_MCST.get_root()
+    # root = current_MCST.get_root()
 
-    node = current_MCST.query(hand,query_set)
-    current_MCST.build(node=node,compute_time=1000000,cards=hand,max_nodes=1000000)
-    for card in current_MCST.get_root().card_totals.items():
-        print(card)
+    # node = current_MCST.query(hand,query_set)
+    # current_MCST.build(node=node,compute_time=1000000,cards=hand,max_nodes=math.inf)
+    # for card in current_MCST.get_root().card_totals.items():
+    #     print(card)
+
+    # hand = (Card(rank='8', suit='spades'), Card(rank='A', suit='spades'))
+    # current_MCST.build(compute_time=1000000,cards=hand,max_nodes=math.inf)
 
     with open(pickled_file, 'wb') as handle:
         pickle.dump(trees, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    hand = (Card(rank='8', suit='spades'), Card(rank='A', suit='spades'))
-    current_MCST.build(compute_time=1000000,cards=hand,max_nodes=1000000)
 
     root = current_MCST.get_root()
     print(root.card_totals)
