@@ -2507,14 +2507,14 @@ if __name__ == '__main__':
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run    
             {
-                'simulation_name': 'alwayscall vs 1 all different types player', # name of simulation - reference for data analytics
+                'simulation_name': 'monte vs 1 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
                     MonteCarloTreeSearchPlayer
                 ]
             },
             {
-                'simulation_name': 'alwayscall vs 1 all different types player', # name of simulation - reference for data analytics
+                'simulation_name': 'smart vs 1 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
                     SmartPlayer
