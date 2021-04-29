@@ -2097,7 +2097,7 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
 
         self.decision_tree = MCST_Set()
         self.moving_average = []
-        self.last_odds = 0
+        self.last_odds = [0,0,0]
 
     def get_opponents_map(self):
 
@@ -2215,7 +2215,7 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
             if win_odds > 0:
                 self.moving_average.append(win_odds)
             
-            self.last_odds = win_odds
+            self.last_odds[0] = win_odds
 
             if sum(self.moving_average) ==  0:
                 pre_flop_moving_average = equal_chance_probability
@@ -2224,13 +2224,15 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
 
             wager_probability = pre_flop_moving_average
 
-        if win_odds >= self.last_odds:
-            greater_or_equal = True
-        else:
-            greater_or_equal = False 
-
         if decision_node.card_phase in (1,2):
-            if greater_or_equal == True or win_odds > equal_chance_probability:
+            self.last_odds[decision_node.card_phase] = win_odds
+            prob_diff = self.last_odds[decision_node.card_phase] - self.last_odds[decision_node.card_phase - 1]
+            if prob_diff >= 0:
+                greater_or_equal = True
+            else:
+                greater_or_equal = False
+
+            if greater_or_equal == True or win_odds >= equal_chance_probability:
                 wager_probability = win_odds - .01
         elif decision_node.card_phase == 3:
             wager_probability = equal_chance_probability
@@ -2487,7 +2489,7 @@ if __name__ == '__main__':
                 'simulation_name': 'alwayscall vs 1 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer
+                    MonteCarloTreeSearchPlayer
                 ]
             },
            {
@@ -2495,7 +2497,7 @@ if __name__ == '__main__':
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer
+                    MonteCarloTreeSearchPlayer
                 ]
             },
            {
@@ -2504,7 +2506,7 @@ if __name__ == '__main__':
                     AlwaysCallPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
                     AlwaysCallPlayer, # defines strategy of player 3
-                    AlwaysCallPlayer
+                    MonteCarloTreeSearchPlayer
                 ]
             },
            {
@@ -2514,7 +2516,7 @@ if __name__ == '__main__':
                     AlwaysCallPlayer, # defines strategy of player 2
                     AlwaysCallPlayer, # defines strategy of player 3
                     AlwaysCallPlayer, # defines strategy of player 4
-                    AlwaysCallPlayer
+                    MonteCarloTreeSearchPlayer
                 ]
             },
            {
@@ -2525,52 +2527,7 @@ if __name__ == '__main__':
                     AlwaysCallPlayer, # defines strategy of player 3
                     AlwaysCallPlayer, # defines strategy of player 4
                     AlwaysCallPlayer, # defines strategy of player 5
-                    AlwaysCallPlayer
-                ]
-            },
-            {
-                'simulation_name': 'smart vs 1 all different types player', # name of simulation - reference for data analytics
-                'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    AlwaysCallPlayer, # defines strategy of player 1
-                    SmartPlayer
-                ]
-            },
-           {
-                'simulation_name': 'smart vs 2 all different types player', # name of simulation - reference for data analytics
-                'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    SmartPlayer
-                ]
-            },
-           {
-                'simulation_name': 'smart vs 3 all different types player', # name of simulation - reference for data analytics
-                'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    SmartPlayer
-                ]
-            },
-           {
-                'simulation_name': 'smart vs 4 all different types player', # name of simulation - reference for data analytics
-                'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    AlwaysCallPlayer, # defines strategy of player 4
-                    SmartPlayer
-                ]
-            },
-           {
-                'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
-                'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    AlwaysCallPlayer, # defines strategy of player 4
-                    AlwaysCallPlayer, # defines strategy of player 5
-                    SmartPlayer
+                    MonteCarloTreeSearchPlayer
                 ]
             }
         ]
