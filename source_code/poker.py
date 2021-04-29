@@ -63,6 +63,11 @@ def chunk(lst, n):
         yield lst[i:i + n]
 
 def card_reduced_set(cards):
+    """ 
+    reduces a card set to prevent combinatorial redundencies:
+    A hearts, A spades has same probability as A hearts, A clubs etc
+    reference it as A, A, opposing pair instead.
+    """
     if len(cards) != 2:
         raise Exception("Only 2 cards can be scored")
     card1, card2 = cards 
@@ -78,6 +83,10 @@ def card_reduced_set(cards):
     return tuple(sorted_ranks)
 
 def method_exists(instance, method):
+    """
+        check if a method exists on an instance,
+        used in post_hook function.
+    """
     test_method = getattr(instance, method, None)
     if callable(test_method):
         return True
@@ -1408,9 +1417,17 @@ class SmartPlayer(GenericPlayer):
 ##########################################################################################
 
 def order_by_rank(cards):
+    """ 
+    order a set of Card objects by rank....
+    """
     return tuple(sorted(list(cards),key=lambda card: (RankMap[card.rank], card.suit)))
 
 def UCB(wins,games,parent_total,constant):
+    """
+    This is the upper confidence bound equation:
+
+    win/total game + constant * sqrt(log(parent games) / child games)
+    """
     if games == 0 or parent_total == 0:
         return 0
     return wins / games + constant * math.sqrt(math.log(parent_total)/games)
@@ -1421,8 +1438,8 @@ def monte_carlo_simulation(cards,river,opponents,runtimes=1):
         You give it your current hand (cards variable), the current river, which is
         either: None (pre-flob), 3,4,5 for post-flop.  The odds change with the 
         number of opponents, so you need to add it to.  You do this for
-        runtime number of times and report the percent of wins.  YOu can 
-        think of it as a monte-carlo simulation
+        runtime number of times and report the wins and totals.  YOu can 
+        think of it as a monte-carlo simulation.
     """
     deck = FrenchDeck()
 
@@ -1464,9 +1481,13 @@ def monte_carlo_simulation(cards,river,opponents,runtimes=1):
         deck.load_deck() # reset the deck for the next simulation
         deck.reshuffle_draw_deck()
 
-    return (wins, runtimes) # your percent wins
+    return (wins, runtimes) # wins and number of games
 
 class MCST_Set(object):
+    """ 
+    MCST - monte carlo tree search algorithm and it's associated tree.  get_root gets the actual tree.
+    """
+
     def __init__(self):
         self.game_types = {}
 
@@ -2492,44 +2513,13 @@ if __name__ == '__main__':
                     MonteCarloTreeSearchPlayer
                 ]
             },
-           {
-                'simulation_name': 'alwayscall vs 2 all different types player', # name of simulation - reference for data analytics
+            {
+                'simulation_name': 'alwayscall vs 1 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    MonteCarloTreeSearchPlayer
+                    SmartPlayer
                 ]
-            },
-           {
-                'simulation_name': 'alwayscall vs 3 all different types player', # name of simulation - reference for data analytics
-                'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    MonteCarloTreeSearchPlayer
-                ]
-            },
-           {
-                'simulation_name': 'alwayscall vs 4 all different types player', # name of simulation - reference for data analytics
-                'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    AlwaysCallPlayer, # defines strategy of player 4
-                    MonteCarloTreeSearchPlayer
-                ]
-            },
-           {
-                'simulation_name': 'alwayscall vs 5 all different types player', # name of simulation - reference for data analytics
-                'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer, # defines strategy of player 2
-                    AlwaysCallPlayer, # defines strategy of player 3
-                    AlwaysCallPlayer, # defines strategy of player 4
-                    AlwaysCallPlayer, # defines strategy of player 5
-                    MonteCarloTreeSearchPlayer
-                ]
-            }
+            }           
         ]
     }
 
