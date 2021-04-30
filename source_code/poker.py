@@ -2819,23 +2819,26 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 30, # number of poker tables simulated
-       'hands': 100, # number of hands the dealer will player, has to be greater than 2
+       'tables': 5, # number of poker tables simulated
+       'hands': 10, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run    
             {
                 'simulation_name': 'monte vs 1 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
-                    AlwaysCallPlayer, # defines strategy of player 1
-                    MonteCarloTreeSearchPlayer
+                    #AlwaysCallPlayer, # defines strategy of player 1
+                    MonteCarloTreeSearchPlayer,
+                    simpleLearnerPlayer
+
                 ]
             },
             {
                 'simulation_name': 'smart vs 1 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
-                    SmartPlayer
+                    SmartPlayer,
+                    AwareLearnerPlayer
                 ]
             }           
         ]
