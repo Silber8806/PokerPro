@@ -1514,8 +1514,6 @@ class simpleLearnerPlayer(GenericPlayer):
             self.number_of_finished_games=0
             
             if self.short_memory!=self.current_game: #only making beting decision when we recieve the first two cards
-                sprint('______________________________________________________________________')
-                
                 self.simpleLearnerCall(hand)
                 self.short_memory=self.current_game
             else:
@@ -1534,7 +1532,6 @@ class simpleLearnerPlayer(GenericPlayer):
                 self.number_of_finished_games=len(self.balance_history)
                 
             else:
-                sprint('****************************************************repeating action')
                 self.repeat_action()
             
         return None
@@ -1560,11 +1557,9 @@ class AwareLearnerPlayer(GenericPlayer):
             same_suit='N'
         self.dictionary_key=[hand_rank[0]+hand_rank[1]+same_suit,hand_rank[1]+hand_rank[0]+same_suit,'action']#saving the previous hand dictionary and action
         
-        sprint('outside class players_________________________________')
         if self.hand_dictionary[self.dictionary_key[0]]['sum_absolute_bet']==0:
             
             #calling the first hand if player hanst played this hand and opponents dont have higher odds of winnings
-                sprint('first time randomply calling')
                 self.dictionary_key[2]='call'
                 self.call_bet()
         else:
@@ -2828,8 +2823,8 @@ if __name__ == '__main__':
                 'simulation_name': 'monte vs 1 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     #AlwaysCallPlayer, # defines strategy of player 1
-                    MonteCarloTreeSearchPlayer,
-                    simpleLearnerPlayer
+                    AlwaysCallPlayer,
+                    MonteCarloTreeSearchPlayer
 
                 ]
             },
