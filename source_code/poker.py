@@ -9,10 +9,12 @@ import collections
 import time
 import math
 import copy
+import pandas as pd
 
 from collections import Counter
 from multiprocessing import Pool
 from functools import partial
+
 #pip install numpy
 import numpy as np
 
@@ -1411,6 +1413,322 @@ class SmartPlayer(GenericPlayer):
         else:
             self.fold_bet()
         return None
+
+class simpleLearnerPlayer(GenericPlayer):
+    
+    def policy(self):
+        return 0
+    def simpleLearnerCall(self,hand):
+        """
+        Made this function to make the decision for making call,fold and raise
+        """
+        hand_rank=[x for x,y in hand]
+        hand_suit=[y for x,y in hand]
+        
+        if hand_suit[0]==hand_suit[1]:
+            same_suit='Y'
+        else:
+            same_suit='N'
+        self.dictionary_key=[hand_rank[0]+hand_rank[1]+same_suit,hand_rank[1]+hand_rank[0]+same_suit,'action']#saving the previous hand dictionary and action
+       
+        #using same probability to play for first hand
+        chance=random.random()
+        if self.hand_dictionary[self.dictionary_key[0]]['sum_absolute_bet']==0:
+            
+            if chance<0.33:
+                
+                self.dictionary_key[2]='fold'
+                self.fold_bet()
+            elif chance>=0.33 and chance<0.66:
+                
+                self.dictionary_key[2]='call'
+                self.call_bet()
+            else:
+                
+                self.dictionary_key[2]='raise'
+                self.raise_bet(20)
+        else:
+            #print('repeated hand*************************************',self.hand_dictionary[self.dictionary_key[0]]['sum_bet'])
+            #print('repeated absolute gain/lost',self.hand_dictionary[self.dictionary_key[0]]['sum_absolute_bet'])
+            action=self.hand_dictionary[self.dictionary_key[0]]['sum_bet'].argmax()
+            #if self.hand_dictionary[self.dictionary_key[0]]['sum_bet']>0:
+            if action==0:    
+                
+                self.dictionary_key[2]='fold'
+                self.fold_bet()
+            elif action==1:
+                
+                self.dictionary_key[2]='call'
+                self.call_bet()
+            else:
+                raise_amount=20#round(100*self.hand_dictionary[self.dictionary_key[0]]['sum_bet']/self.hand_dictionary[self.dictionary_key[0]]['sum_absolute_bet'],0)
+                #print('reapeated winning hand,raising by',raise_amount)
+                self.dictionary_key[2]='raise'
+                self.raise_bet(raise_amount)
+        return None
+               
+    def update_SimpleLearnerReward(self):
+        if self.dictionary_key[2]=='fold':
+                    for i in range(2):#setting dictionary for both combination
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_absolute_bet']+=abs(self.balance_history[len(self.balance_history)-1][8])#updating hand dictionary
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_bet']+=np.array([self.balance_history[len(self.balance_history)-1][8],0,0])
+        elif self.dictionary_key[2]=='call':
+                    for i in range(2):#setting dictionary for both combination
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_absolute_bet']+=abs(self.balance_history[len(self.balance_history)-1][8])#updating hand dictionary
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_bet']+=np.array([0,self.balance_history[len(self.balance_history)-1][8],0])
+        elif self.dictionary_key[2]=='raise':
+                    for i in range(2):#setting dictionary for both combination
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_absolute_bet']+=abs(self.balance_history[len(self.balance_history)-1][8])#updating hand dictionary
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_bet']+=np.array([0,0,self.balance_history[len(self.balance_history)-1][8]])
+        else:
+            raise Exception('Action must select between fold, call or raise actions')
+        return None    
+    
+    def repeat_action(self):
+        if self.dictionary_key[2]=='call':
+            
+            self.call_bet()
+        elif self.dictionary_key[2]=='raise':
+            
+            self.raise_bet(20)
+        else:
+            raise Exception('Check your code only two options for repeating actions should be call and raise')
+        return None
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        """
+        This player is a very simple learner, it looks at the first two card and make the decision on
+        whether to call, raise or fold based on the first two call. Player has 3 simple policies, fold, call and raise by 20.
+        we selected the same betting amount as we had for always call and always raise players in order to be able to compare the results.
+        Player starts learning by playing games, at first he randomly selects between different policy (fold, call and raise) and sotre the
+        final results "game net change" as its rewards. As it play more hands it starts to build the intuition about which hands/strategy give him better results.
+        Player going to store the first two cards as a dictionary with rankings and whether they are the same suit or not as Y/N (for example if player has king 
+        daimond and 2 club the key for the dictionary will be K2N & 2KN, but if we had King club and 2 club then the key for dictionary will be 2KY & K2Y). Then we append 
+        the value of "game net change" after each game into the list. 
+        As player plays more hand it starts utilizing the "game net change" value for each pair for cards. for example if player recieves 2KY it looks at "game net change"
+        value from previous plays and calculates the probability of playing by adding all the "game net change" values in the list for 2KY hand and then divide that by adding
+        the absolute value of "game net change".
+
+        """
+       
+        if len(self.balance_history)==0:
+            self.number_of_finished_games=0
+            
+            if self.short_memory!=self.current_game: #only making beting decision when we recieve the first two cards
+                sprint('______________________________________________________________________')
+                
+                self.simpleLearnerCall(hand)
+                self.short_memory=self.current_game
+            else:
+                self.repeat_action()
+        else :#if len(self.balance_history)>self.number_of_finished_games:
+            
+            if self.short_memory!=self.current_game:
+                
+                #updating the reward 
+                self.update_SimpleLearnerReward()
+                
+                self.simpleLearnerCall(hand)
+                self.short_memory=self.current_game
+                number_of_game=len(self.balance_history)
+                
+                self.number_of_finished_games=len(self.balance_history)
+                
+            else:
+                sprint('****************************************************repeating action')
+                self.repeat_action()
+            
+        return None
+
+class AwareLearnerPlayer(GenericPlayer):
+    def __init__(self,name,balance):
+        super().__init__(name,balance)
+        self.previous_game={}
+        self.initial_balance=balance
+        self.number_of_game=1
+        self.previous_list=[]
+    
+    def AwareLearnerCall(self,hand):
+        """
+        Made this function to make the decision for making call,fold and raise
+        """
+        hand_rank=[x for x,y in hand]
+        hand_suit=[y for x,y in hand]
+        
+        if hand_suit[0]==hand_suit[1]:
+            same_suit='Y'
+        else:
+            same_suit='N'
+        self.dictionary_key=[hand_rank[0]+hand_rank[1]+same_suit,hand_rank[1]+hand_rank[0]+same_suit,'action']#saving the previous hand dictionary and action
+        
+        sprint('outside class players_________________________________')
+        if self.hand_dictionary[self.dictionary_key[0]]['sum_absolute_bet']==0:
+            
+            #calling the first hand if player hanst played this hand and opponents dont have higher odds of winnings
+                sprint('first time randomply calling')
+                self.dictionary_key[2]='call'
+                self.call_bet()
+        else:
+            
+            action=self.hand_dictionary[self.dictionary_key[0]]['sum_bet'].argmax()
+            
+            if action==0:    
+                
+                self.dictionary_key[2]='fold'
+                self.fold_bet()
+            elif action==1:
+                
+                winning_probability=self.hand_dictionary[self.dictionary_key[0]]['sum_bet'][action]/(abs(self.hand_dictionary[self.dictionary_key[0]]['sum_bet'][action])+abs(self.hand_dictionary[self.dictionary_key[0]]['sum_bet'][0])+abs(self.hand_dictionary[self.dictionary_key[0]]['sum_bet'][2]))
+                #if number of winning on call is high then raise, otherwise keep calling.
+                if winning_probability>0.7:
+                    self.dictionary_key[2]='raise'
+                    self.raise_bet(round(0.2*self.hand_dictionary[self.dictionary_key[0]]['sum_bet'][action],0))
+                else:
+                    self.dictionary_key[2]='call'
+                    self.call_bet()
+            else:
+                #player only going to raise on the hands that he already won
+                if self.hand_dictionary[self.dictionary_key[0]]['sum_bet'][action]>0:
+                    raise_amount=round(0.1*self.hand_dictionary[self.dictionary_key[0]]['sum_bet'][action],0)#raising by 10% of cumulative wins
+                    
+                    self.dictionary_key[2]='raise'
+                    self.raise_bet(raise_amount)
+                #if player lost money on this hand its going to check between cumulative lost between call and fold and select the one
+                #with lower loss
+                elif self.hand_dictionary[self.dictionary_key[0]]['sum_bet'][1]>self.hand_dictionary[self.dictionary_key[0]]['sum_bet'][0]:
+                    self.dictionary_key[2]='call'
+                    self.call_bet()
+                else:
+                    self.dictionary_key[2]='fold'
+                    self.fold_bet()
+        return None
+               
+    def temp_balance_dictionary(self,active_players,temp_dictionary):
+        #print('active players in temb balance dictionary',self.active_game.players)
+        for player in self.active_game.players:
+            #print('player is',player['player'])
+            #print('active is',player['active'])
+
+            
+            if player['active']==1:
+                active_players+=1
+                
+                if player['player'].name!=self.name:
+                    temp_dictionary.update({player['player'].name:player['player'].balance_history[-1][-1]})
+        return temp_dictionary,active_players
+        
+    def opponent_winning_probability(self,active_players,temp_dictionary):
+        
+        player_action_list=self.active_game.player_actions.copy()
+        #removing all the items with card information from the list.
+        for action_list in player_action_list:
+            if len(action_list)!=4:
+                player_action_list.remove(action_list)
+        for _,player,action,_ in player_action_list[-2*active_players:-active_players]:#self.active_game.player_actions[-2*active_players:-active_players]:
+            
+            if player!=self.name:#dont want to check our own action
+                
+                if player in temp_dictionary:
+                    self.previous_game[player][action]['cum_sum']+=temp_dictionary[player]
+                    self.previous_game[player][action]['abs_sum']+=abs(temp_dictionary[player])
+                    self.previous_game[player][action]['probability']=self.previous_game[player][action]['cum_sum']/self.previous_game[player][action]['abs_sum']                                     
+                else:
+                    print('*******************check why player active_game.players is not in active_game.player_actions???????? ')
+        return None
+    
+    def max_opponent_probability(self,action_list):
+        """
+        This function looks at all the players action and their historical results, then return the current action
+        and highest probability of winning against other player
+        """
+        max_probability=0
+        #print('action_list is',action_list, 'previous list is',self.previous_list)
+        #print('------curent actions are ',list(set(action_list)-set(self.previous_list)))
+        for action_tuple in list(set(action_list)-set(self.previous_list)):
+            if len(action_tuple)==4:#filtering out the cards
+                
+                #print('action tuple is ',action_tuple)
+                _,player,action,_ = action_tuple
+                if (player!=self.name)&(action!='fold'):
+                    if self.previous_game[player][action]['probability']>max_probability:
+                        max_probability=self.previous_game[player][action]['probability']
+        self.previous_list=action_list.copy() #updating previous list for next betting round
+        return max_probability
+        
+        
+    
+    def action_based_on_opponent(self,probability,hand,thereshold=0.7):
+        if probability>thereshold:
+            #print('our player is folding because other player has higher chance')
+            #print('previous hand is (not updating self.dictionary_key)',hand)
+            self.fold_bet()
+        else:
+            self.AwareLearnerCall(hand)
+        return None
+        
+    #using the same functions as simple learner to update rewards for each hand, probably there is a better way
+    # than copy and pasting the same funciton, however going to do this for the time being.
+    def update_SimpleLearnerReward(self):
+        if self.dictionary_key[2]=='fold':
+                    for i in range(2):#setting dictionary for both combination
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_absolute_bet']+=abs(self.balance_history[len(self.balance_history)-1][8])#updating hand dictionary
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_bet']+=np.array([self.balance_history[len(self.balance_history)-1][8],0,0])
+        elif self.dictionary_key[2]=='call':
+                    for i in range(2):#setting dictionary for both combination
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_absolute_bet']+=abs(self.balance_history[len(self.balance_history)-1][8])#updating hand dictionary
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_bet']+=np.array([0,self.balance_history[len(self.balance_history)-1][8],0])
+        elif self.dictionary_key[2]=='raise':
+                    for i in range(2):#setting dictionary for both combination
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_absolute_bet']+=abs(self.balance_history[len(self.balance_history)-1][8])#updating hand dictionary
+                        self.hand_dictionary[self.dictionary_key[i]]['sum_bet']+=np.array([0,0,self.balance_history[len(self.balance_history)-1][8]])
+        else:
+            raise Exception('Action must select between fold, call or raise actions')
+        return None    
+    
+    
+    def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
+        """
+        This player uses different strategy from SimpleLearner Player to learn by playing hand. Unlike SimpleLearner that 
+        randomly selects between fold, call and raise when there is no previous information, this player starts playing everyhand to
+        learn whether it is a good hand or not. We expect this player to perform better by not losing the money by randomly folding or raising
+        then it looks at the gain for call, if its negative its going to fold next time.
+        Player learn about betting strategy by observing other players actions (bet, fold, raise) and the reward of their actions, then he decide his action based on the other result
+        learn whether it is a good hand or not. We expect this player to perform better by not losing the money 
+        """
+        if self.number_of_game==1:
+            self.call_bet()#playing the first game as we dont have hany knowledge about previous games
+        else:
+            
+            action_list=[action_tuple for action_tuple in self.active_game.get_player_actions() if len(action_tuple)==4]#removing card info from the list
+            max_probability=self.max_opponent_probability(action_list)
+            self.action_based_on_opponent(max_probability,hand)
+        
+        
+       
+  
+
+
+
+    def post_game_hook(self):
+
+        if self.number_of_game==1:
+            #creating a dictionary to record winnig hand of other players for their action.
+            self.previous_game={player['player'].name:{'bet':{'cum_sum':0,'abs_sum':0,'probability':0},'call':{'cum_sum':0,'abs_sum':0,'probability':0}}  for player in self.active_game.players if player['player'].name!=self.name}
+        else:
+            self.update_SimpleLearnerReward()
+            
+        self.number_of_game+=1
+        active_players=0
+        temp_dictionary={}
+        temp_dictionary,active_players=self.temp_balance_dictionary(active_players,temp_dictionary)
+                         
+                
+        
+        
+        self.opponent_winning_probability(active_players,temp_dictionary)
+                                                                      
+        
+        self.previous_list=[]
+        
 
 ##########################################################################################
 #                          Monte Carlo Tree Search - Player

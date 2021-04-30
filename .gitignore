@@ -128,10 +128,13 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-
 data
 data_monte_carlo
+ideas
+old_file
+
 *.csv
 *.pickle
 *.json
 *.to_csv
+

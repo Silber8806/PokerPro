@@ -757,7 +757,7 @@ treeData = [
   }
 ]
 
-pickled_file = 'MCST.pickle'
+pickled_file = 'MCST.pickle' # previous code generated this file
 if os.path.exists(pickled_file):
     with open(pickled_file, 'rb') as handle:
         trees = pickle.load(handle)
