@@ -1902,7 +1902,7 @@ class PlayerNode(object):
         return listing
 
 class MCST(object):
-    def __init__(self,turn_order,card_branching=10,monte_carlo_sims=10):
+    def __init__(self,turn_order,card_branching=5,monte_carlo_sims=5):
         self.turn_order = turn_order
         self.small_blind = turn_order[-2]
         self.big_blind = turn_order[-1]
@@ -1914,6 +1914,7 @@ class MCST(object):
         self.hands_simulated = set()
         self.card_context = None
         self.node_count = 1
+        self.updates = 0
         self.root = PlayerNode(player_type='start')
         self.root.turn_context = self.turn_order
         self.root.last_turn = {player:None for player in self.turn_order}
@@ -1993,6 +1994,8 @@ class MCST(object):
 
         if len(unfullfilled_actions):
             action_to_update = random.choice(unfullfilled_actions)
+
+            self.updates += 1
 
             if node.relations[action_to_update] is not None:
                 updated_node = node.relations[action_to_update]
@@ -2217,7 +2220,7 @@ class MCST(object):
     def build(self,cards,node='root',compute_time=1,max_nodes=100000):
         if compute_time is None:
             raise Exception("You didn't specify a compute or step limit for MCTS")
-        if compute_time < 1:
+        if compute_time < .1:
             raise Exception("You have to run simulation for at least 1 second")
 
         cards = list(cards)
@@ -2386,6 +2389,7 @@ class MCST(object):
                 node = self.create_node(hand,prev_node,action_type)
                 self.simulate_node(node)
                 self.back_propogate_node(node)
+                self.updates += 1
             else:
                 abridged_key = []
                 for key in node.card_totals.keys():
@@ -2394,6 +2398,7 @@ class MCST(object):
                     self.update_node(node,hand)
                     self.simulate_node(node)
                     self.back_propogate_node(node)
+                    self.updates += 1
 
             if node.player_type != player:
                 raise Exception("wrong player type...please check for bugs")
@@ -2468,7 +2473,7 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
             new_tree = self.decision_tree.get_game(beginning_players)
 
         if not new_tree.has_hand(hand):
-            new_tree.build(cards=hand,compute_time=30,max_nodes=math.inf)
+            new_tree.build(cards=hand,compute_time=.25,max_nodes=math.inf)
 
         if river is None:
             river = []
@@ -2493,10 +2498,10 @@ class MonteCarloTreeSearchPlayer(GenericPlayer):
         card_query = card_query[0:cards_to_slot]
 
         if card_query not in decision_node.card_totals:
-            new_tree.build(node=decision_node,cards=card_query,compute_time=5,max_nodes=100)
+            new_tree.build(node=decision_node,cards=card_query,compute_time=.1,max_nodes=100)
 
         if decision_node.card_totals[card_query] < 100:
-            new_tree.build(node=decision_node,cards=card_query,compute_time=5,max_nodes=100)
+            new_tree.build(node=decision_node,cards=card_query,compute_time=.1,max_nodes=100)
 
         child_totals = decision_node.get_child_game_totals(card_query)
         child_wins = decision_node.get_child_win_totals(card_query)
@@ -2779,7 +2784,7 @@ def run_all_simulations(config):
     return None
 
 debug = 0 # to see detailed messages of simulation, put this to 1, think verbose mode
-use_parallel = 0 # would not recommend using use_cache=1 on function simulate_win_odds due to not knowing if globals are thread or process safe.
+use_parallel = 1 # would not recommend using use_cache=1 on function simulate_win_odds due to not knowing if globals are thread or process safe.
 
 # serial runs are guanteed unique repeatable results.  Parallel runs due to randomness of start times are not.  worth noting.
 
@@ -2791,24 +2796,101 @@ if __name__ == '__main__':
 
     # defines all the simulations we will run
     simulations = {
-       'tables': 1, # number of poker tables simulated
-       'hands': 5, # number of hands the dealer will player, has to be greater than 2
+       'tables': 30, # number of poker tables simulated
+       'hands': 100, # number of hands the dealer will player, has to be greater than 2
        'balance': 100000, # beginning balance in dollars, recommend > 10,000 unless you want player to run out of money
        'minimum_balance': 50, # minimum balance to join a table
        'simulations': [ # each dict in the list is a simulation to run    
             {
+                'simulation_name': 'alwayscall vs 1 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer
+                ]
+            },
+           {
+                'simulation_name': 'alwayscall vs 2 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer
+                ]
+            },
+           {
+                'simulation_name': 'alwayscall vs 3 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    AlwaysCallPlayer
+                ]
+            },
+           {
+                'simulation_name': 'alwayscall vs 4 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    AlwaysCallPlayer, # defines strategy of player 4
+                    AlwaysCallPlayer
+                ]
+            },
+           {
+                'simulation_name': 'alwayscall vs 5 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    AlwaysCallPlayer, # defines strategy of player 4
+                    AlwaysCallPlayer, # defines strategy of player 5
+                    AlwaysCallPlayer
+                ]
+            },
+            {
+                'simulation_name': 'smart vs 1 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    SmartPlayer
+                ]
+            },
+           {
+                'simulation_name': 'smart vs 2 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    SmartPlayer
+                ]
+            },
+           {
+                'simulation_name': 'smart vs 3 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    SmartPlayer
+                ]
+            },
+           {
+                'simulation_name': 'smart vs 4 all different types player', # name of simulation - reference for data analytics
+                'player_types': [ # type of players, see the subclasses of GenericPlayer
+                    AlwaysCallPlayer, # defines strategy of player 1
+                    AlwaysCallPlayer, # defines strategy of player 2
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    AlwaysCallPlayer, # defines strategy of player 4
+                    SmartPlayer
+                ]
+            },
+           {
                 'simulation_name': 'smart vs 5 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     AlwaysCallPlayer, # defines strategy of player 1
                     AlwaysCallPlayer, # defines strategy of player 2
-                    #CalculatedPlayer, # defines strategy of player 3
-                    #GambleByProbabilityPlayer, # defines strategy of player 4
-                    #ConservativePlayer, # defines strategy of player 5
-                    #SmartPlayer # defines strategy of player 6
-                    #MonteCarloTreeSearchPlayer
-                    MonteCarloTreeSearchPlayer
+                    AlwaysCallPlayer, # defines strategy of player 3
+                    AlwaysCallPlayer, # defines strategy of player 4
+                    AlwaysCallPlayer, # defines strategy of player 5
+                    SmartPlayer
                 ]
-            }    
+            }
         ]
     }
 
