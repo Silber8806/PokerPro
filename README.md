@@ -1,4 +1,5 @@
-# PokerPro - Poker simulation software - Simulations - Georgia Tech Grad School Project 
+# PokerPro - Poker simulation software 
+# Simulations - Georgia Tech Grad School Project 
 
 ## High Level Overview
 
