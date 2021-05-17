@@ -9,7 +9,7 @@ python poker.py
 
 we tried to keep it simple to make grading easier.  You can modify the poker simulation via a variable in the script.  An example below:
 
-```
+```python
     simulations = {
        'tables': 10, # number of poker tables simulated
        'hands': 50, # number of hands the dealer will player, has to be greater than 2
@@ -71,7 +71,7 @@ In the above, you have a few variables you can modify:
 
 Strategies are easy to define, you just inherit from GenericPlayer and implement a bet strategy.  The list is the class name, not an instance of the class:
 
-```
+```python
 # Player that always calls
 class AlwaysCallPlayer(GenericPlayer):
     def bet_strategy(self,hand,river,opponents,call_bid,current_bid,pot,raise_allowed=False):
