@@ -2826,7 +2826,7 @@ if __name__ == '__main__':
                 'simulation_name': 'monte vs 1 all different types player', # name of simulation - reference for data analytics
                 'player_types': [ # type of players, see the subclasses of GenericPlayer
                     #AlwaysCallPlayer, # defines strategy of player 1
-                    AlwaysCallPlayer,
+                    AlwaysRaisePlayer,
                     MonteCarloTreeSearchPlayer
 
                 ]
